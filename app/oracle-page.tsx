@@ -38,22 +38,28 @@ function HexagramLine({
   const color = isChanging ? "#f97316" : "#1a1a1a";
 
   return (
+    // Outer row: full width, relative so the ○ can be absolutely positioned
     <div
-      className={`flex items-center my-2 ${animate ? "line-draw" : ""}`}
+      className={`relative flex justify-center items-center my-2 ${animate ? "line-draw" : ""}`}
       style={{ animationDelay: animate ? `${index * 0.05}s` : undefined }}
     >
-      {isYang ? (
-        <div className="h-5 w-full rounded" style={{ backgroundColor: color }} />
-      ) : (
-        <div className="flex w-full gap-4">
-          <div className="h-5 flex-1 rounded" style={{ backgroundColor: color }} />
-          <div className="h-5 flex-1 rounded" style={{ backgroundColor: color }} />
-        </div>
-      )}
+      {/* Lines always 75% of the container — equal width regardless of changing status */}
+      <div style={{ width: "75%" }}>
+        {isYang ? (
+          <div className="h-5 w-full rounded" style={{ backgroundColor: color }} />
+        ) : (
+          <div className="flex w-full gap-4">
+            <div className="h-5 flex-1 rounded" style={{ backgroundColor: color }} />
+            <div className="h-5 flex-1 rounded" style={{ backgroundColor: color }} />
+          </div>
+        )}
+      </div>
+
+      {/* ○ sits outside the line area, absolutely pinned to the right */}
       {isChanging && (
         <span
-          className="ml-3 text-sm font-bold flex-shrink-0"
-          style={{ color: "#f97316", minWidth: "1.25rem" }}
+          className="absolute right-0 text-sm font-bold leading-none"
+          style={{ color: "#f97316" }}
         >
           ○
         </span>
@@ -695,8 +701,8 @@ export default function OraclePage() {
 
                     if (lineVal === undefined) {
                       return (
-                        <div key={displayIdx} className="my-2 h-5 flex items-center">
-                          <div className="w-full border-b-2 border-dashed border-gray-200" />
+                        <div key={displayIdx} className="relative flex justify-center items-center my-2 h-5">
+                          <div className="border-b-2 border-dashed border-gray-200" style={{ width: "75%" }} />
                         </div>
                       );
                     }
