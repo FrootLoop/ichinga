@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --oracle-bg: #0f0e0c;
+  --oracle-gold: #c9a84c;
+  --oracle-text: #e8dcc8;
+}
+
+html,
+body {
+  height: 100%;
+  background-color: var(--oracle-bg);
+  color: var(--oracle-text);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+@layer utilities {
+  .hex-line-yang {
+    @apply h-2 bg-current rounded-sm w-full;
+  }
+
+  .hex-line-yin-left {
+    @apply h-2 bg-current rounded-sm flex-1;
+  }
+
+  .hex-line-yin-right {
+    @apply h-2 bg-current rounded-sm flex-1;
+  }
+
+  .fade-in {
+    animation: fadeIn 0.8s ease-in-out;
+  }
+
+  .slide-up {
+    animation: slideUp 0.5s ease-out;
+  }
+
+  .glow-gold {
+    text-shadow: 0 0 20px rgba(201, 168, 76, 0.4);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes lineDraw {
+  from { transform: scaleX(0); opacity: 0; }
+  to   { transform: scaleX(1); opacity: 1; }
+}
+
+.line-draw {
+  animation: lineDraw 0.4s ease-out forwards;
+  transform-origin: left center;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #1a1814;
+}
+::-webkit-scrollbar-thumb {
+  background: #3d3428;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #c9a84c;
+}

@@ -1,0 +1,15 @@
+
+Build an webpage that performs a reading with the I Ching. What will be presented to the user is basic instructions on how to question the Oracle, a place to write their question, and then a stage where the hexagram will be presented line by line as it is being oracled. If a 2nd hexagram is derived from the first, it will be presented next to the original. Either hexagram will present the related hexagram information beneath it, like Number, Name, and a quick summary of the overal hexagram, and specific summary of the changing lines (if a 2nd hexagram is included)
+
+when presenting the hexagram lines the lines will be black on white background, except when a line is changing, color that line orange
+
+when questioning the Oracle, to mimic the casting of sticks or flipping of coins, the webpage will let the user know to move their mouse in a random fashion, and the website will use the x,y to generate random numbers that mimic the expected results. allow 1-2 seconds between capturing random numbers, and drawing each line on the screen. when the hexagram is complete, stop generating random numbers.
+
+there will be a Ask Again button to clear the question and hexagrams, and reset the random number generation.
+
+for database use Supabase
+for webhosting use Vercel
+
+The website will support multiple users, with a login and password, to view their stored questions and oracled hexagrams
+
+When a user is not logged in, the website will allow for oracle reading functionality, but no saved history will be shown
