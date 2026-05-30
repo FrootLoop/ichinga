@@ -39,21 +39,21 @@ function HexagramLine({
 
   return (
     <div
-      className={`flex items-center my-1 ${animate ? "line-draw" : ""}`}
+      className={`flex items-center my-2 ${animate ? "line-draw" : ""}`}
       style={{ animationDelay: animate ? `${index * 0.05}s` : undefined }}
     >
       {isYang ? (
-        <div className="h-3 w-full rounded-sm" style={{ backgroundColor: color }} />
+        <div className="h-5 w-full rounded" style={{ backgroundColor: color }} />
       ) : (
-        <div className="flex w-full gap-3">
-          <div className="h-3 flex-1 rounded-sm" style={{ backgroundColor: color }} />
-          <div className="h-3 flex-1 rounded-sm" style={{ backgroundColor: color }} />
+        <div className="flex w-full gap-4">
+          <div className="h-5 flex-1 rounded" style={{ backgroundColor: color }} />
+          <div className="h-5 flex-1 rounded" style={{ backgroundColor: color }} />
         </div>
       )}
       {isChanging && (
         <span
-          className="ml-2 text-xs font-bold flex-shrink-0"
-          style={{ color: "#f97316", minWidth: "1rem" }}
+          className="ml-3 text-sm font-bold flex-shrink-0"
+          style={{ color: "#f97316", minWidth: "1.25rem" }}
         >
           ○
         </span>
@@ -92,7 +92,7 @@ function HexagramCard({
         </div>
       </div>
 
-      <div className="my-5 px-2">
+      <div className="my-5 px-1">
         {displayLines.map((val, idx) => (
           <HexagramLine key={5 - idx} value={val} index={idx} animate />
         ))}
@@ -687,7 +687,7 @@ export default function OraclePage() {
               </div>
 
               {/* Live hexagram being drawn (top line at top) */}
-              <div className="bg-white rounded-2xl p-8 shadow-2xl w-64">
+              <div className="bg-white rounded-2xl p-8 shadow-2xl w-80">
                 <div className="space-y-1">
                   {Array.from({ length: 6 }).map((_, displayIdx) => {
                     const lineIdx = 5 - displayIdx;
@@ -695,8 +695,8 @@ export default function OraclePage() {
 
                     if (lineVal === undefined) {
                       return (
-                        <div key={displayIdx} className="my-1 h-3 flex items-center">
-                          <div className="w-full border-b border-dashed border-gray-200" />
+                        <div key={displayIdx} className="my-2 h-5 flex items-center">
+                          <div className="w-full border-b-2 border-dashed border-gray-200" />
                         </div>
                       );
                     }
