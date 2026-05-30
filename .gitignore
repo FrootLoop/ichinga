@@ -33,3 +33,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local dev artifacts
+dev-out.txt
+dev-err.txt
+screenshot*.png
+screenshot.mjs
+
+# claude
+.claude/

@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "PowerShell(Get-ChildItem \"D:\\\\VibeProjects\\\\ichinga\" -Recurse -File | Where-Object { $_.FullName -notmatch 'node_modules|\\\\.next' } | ForEach-Object { $_.FullName.Replace\\(\"D:\\\\VibeProjects\\\\ichinga\\\\\", \"\"\\) } | Sort-Object)",
-      "PowerShell(Set-Location \"D:\\\\VibeProjects\\\\ichinga\"; $env:NEXT_PUBLIC_SUPABASE_URL=\"https://placeholder.supabase.co\"; $env:NEXT_PUBLIC_SUPABASE_ANON_KEY=\"placeholder-anon-key\"; Start-Process -FilePath \"npm\" -ArgumentList \"run\",\"dev\" -PassThru -WindowStyle Hidden; Start-Sleep -Seconds 8; try { $r = Invoke-WebRequest -Uri \"http://localhost:3000\" -TimeoutSec 5 -UseBasicParsing; \"HTTP $\\($r.StatusCode\\)\" } catch { \"Error: $_\" })",
-      "PowerShell(npm install *)"
-    ]
-  }
-}
