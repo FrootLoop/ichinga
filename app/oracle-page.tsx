@@ -22,6 +22,17 @@ interface Reading {
   created_at: string;
 }
 
+interface AppConfig {
+  admin_user_id: string | null;
+  disable_signup: boolean;
+}
+
+interface Profile {
+  id: string;
+  email: string;
+  created_at: string;
+}
+
 // ─── Hexagram Line Visual ────────────────────────────────────────────────────
 
 function HexagramLine({
@@ -38,25 +49,19 @@ function HexagramLine({
   const color = isChanging ? "#f97316" : "#1a1a1a";
 
   return (
-    // Outer row centres the inner line box; circle is anchored to the line, not the card edge
     <div
       className={`flex justify-center items-center ${animate ? "line-draw" : ""}`}
       style={{ marginTop: "0.65rem", marginBottom: "0.65rem", animationDelay: animate ? `${index * 0.05}s` : undefined }}
     >
-      {/* Line box — fixed at 56 % of card width (25 % shorter than previous 75 %).
-          `relative` lets the ○ escape rightward without affecting line width. */}
       <div className="relative" style={{ width: "56%" }}>
         {isYang ? (
           <div className="h-5 w-full rounded" style={{ backgroundColor: color }} />
         ) : (
-          // Gap increased ~33 %: was 16 px (gap-4), now 21 px
           <div className="flex w-full" style={{ gap: "21px" }}>
             <div className="h-5 flex-1 rounded" style={{ backgroundColor: color }} />
             <div className="h-5 flex-1 rounded" style={{ backgroundColor: color }} />
           </div>
         )}
-
-        {/* ○ placed just outside the right edge of the line — not at the card margin */}
         {isChanging && (
           <span
             className="absolute top-1/2 -translate-y-1/2 text-sm font-bold leading-none select-none"
@@ -135,11 +140,7 @@ function HexagramCard({
 
 // ─── Save Prompt Modal ───────────────────────────────────────────────────────
 
-function SavePromptModal({
-  onSave,
-}: {
-  onSave: (note: string) => void;
-}) {
+function SavePromptModal({ onSave }: { onSave: (note: string) => void }) {
   const [note, setNote] = useState("");
 
   return (
@@ -176,11 +177,11 @@ function SavePromptModal({
 function AuthModal({
   onClose,
   onAuth,
-  pendingSave,
+  disableSignup,
 }: {
   onClose: () => void;
   onAuth: (user: User) => void;
-  pendingSave: boolean;
+  disableSignup: boolean;
 }) {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
@@ -193,32 +194,25 @@ function AuthModal({
     e.preventDefault();
     setError("");
 
-    // Supabase auth requires Latin-1 characters only (code points 0–255).
-    // Characters above 255 (e.g. an invisible BOM pasted from a rich-text
-    // source) cause an opaque ByteString error from the API.
     for (let i = 0; i < password.length; i++) {
       if (password.charCodeAt(i) > 255) {
         setError(
           "Your password contains an unsupported character. " +
-          "Please type it manually rather than pasting, or use only " +
-          "standard letters, numbers, and symbols."
+            "Please type it manually rather than pasting, or use only " +
+            "standard letters, numbers, and symbols."
         );
         return;
       }
     }
 
     setLoading(true);
-
     try {
       if (mode === "signup") {
         const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         if (data.user) onAuth(data.user);
       } else {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         if (data.user) onAuth(data.user);
       }
@@ -239,11 +233,7 @@ function AuthModal({
           {mode === "login" ? "Sign In" : "Create Account"}
         </h2>
         <p className="text-oracle-muted text-sm mb-6">
-          {pendingSave
-            ? "Sign in to save this reading to your history"
-            : mode === "login"
-            ? "Access your reading history"
-            : "Save your readings for future reflection"}
+          {mode === "login" ? "Access your reading history" : "Save your readings for future reflection"}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -290,15 +280,17 @@ function AuthModal({
           </button>
         </form>
 
-        <p className="text-center text-oracle-muted text-sm mt-4">
-          {mode === "login" ? "No account? " : "Already have an account? "}
-          <button
-            onClick={() => setMode(mode === "login" ? "signup" : "login")}
-            className="text-oracle-gold hover:text-oracle-gold-light underline"
-          >
-            {mode === "login" ? "Sign up" : "Sign in"}
-          </button>
-        </p>
+        {!disableSignup && (
+          <p className="text-center text-oracle-muted text-sm mt-4">
+            {mode === "login" ? "No account? " : "Already have an account? "}
+            <button
+              onClick={() => setMode(mode === "login" ? "signup" : "login")}
+              className="text-oracle-gold hover:text-oracle-gold-light underline"
+            >
+              {mode === "login" ? "Sign up" : "Sign in"}
+            </button>
+          </p>
+        )}
       </div>
     </div>
   );
@@ -327,9 +319,7 @@ function HistoryPanel({
     <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
       {history.map((r) => {
         const primary = getHexagram(r.primary_hexagram);
-        const transformed = r.transformed_hexagram
-          ? getHexagram(r.transformed_hexagram)
-          : null;
+        const transformed = r.transformed_hexagram ? getHexagram(r.transformed_hexagram) : null;
         return (
           <div key={r.id} className="relative group/row">
             <button
@@ -338,11 +328,8 @@ function HistoryPanel({
             >
               <p className="text-xs text-oracle-muted mb-1">
                 {new Date(r.created_at).toLocaleString(undefined, {
-                  year: "numeric",
-                  month: "short",
-                  day: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
+                  year: "numeric", month: "short", day: "numeric",
+                  hour: "numeric", minute: "2-digit",
                 })}
               </p>
               <p className="text-sm text-oracle-text line-clamp-2 mb-1 group-hover:text-oracle-gold-light transition-colors">
@@ -353,7 +340,6 @@ function HistoryPanel({
                 {transformed && ` → ${transformed.number}. ${transformed.name}`}
               </p>
             </button>
-            {/* Delete button — appears on row hover */}
             <button
               onClick={(e) => { e.stopPropagation(); onDelete(r.id); }}
               className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded-md text-oracle-muted hover:text-red-400 hover:bg-red-900/20 opacity-0 group-hover/row:opacity-100 transition-all text-sm leading-none"
@@ -368,6 +354,117 @@ function HistoryPanel({
   );
 }
 
+// ─── Admin Panel ─────────────────────────────────────────────────────────────
+
+function AdminPanel({
+  profiles,
+  appConfig,
+  currentUserId,
+  onSetAdmin,
+  onToggleDisableSignup,
+  onClose,
+}: {
+  profiles: Profile[];
+  appConfig: AppConfig;
+  currentUserId: string;
+  onSetAdmin: (userId: string) => void;
+  onToggleDisableSignup: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-40 flex flex-col overflow-y-auto"
+      style={{ background: "linear-gradient(135deg, #0f0e0c 0%, #1a1510 50%, #0f0e0c 100%)" }}
+    >
+      <header className="flex items-center justify-between px-6 py-4 border-b border-oracle-border/40">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">☯</span>
+          <div>
+            <h1 className="text-xl font-serif text-oracle-gold tracking-wide">Admin</h1>
+            <p className="text-xs text-oracle-muted">I Ching Oracle</p>
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          className="text-sm text-oracle-muted hover:text-oracle-text border border-oracle-border hover:border-oracle-gold/40 rounded-lg px-3 py-1.5 transition-all"
+        >
+          ← Back
+        </button>
+      </header>
+
+      <main className="flex-1 px-4 py-10 max-w-2xl mx-auto w-full space-y-6">
+        {/* User accounts */}
+        <div className="bg-oracle-card border border-oracle-border rounded-2xl p-6">
+          <h2 className="text-oracle-gold font-serif text-lg mb-1">User Accounts</h2>
+          <p className="text-oracle-muted text-sm mb-5 leading-relaxed">
+            Select which account holds admin privileges. There can be only one admin.
+          </p>
+          {profiles.length === 0 ? (
+            <p className="text-oracle-muted text-sm italic">No accounts found.</p>
+          ) : (
+            <div className="space-y-2">
+              {profiles.map((p) => (
+                <label
+                  key={p.id}
+                  className="flex items-center gap-3 bg-oracle-surface hover:bg-oracle-bg border border-oracle-border hover:border-oracle-gold/40 rounded-xl px-4 py-3 cursor-pointer transition-all"
+                >
+                  <input
+                    type="radio"
+                    name="admin-user"
+                    value={p.id}
+                    checked={appConfig.admin_user_id === p.id}
+                    onChange={() => onSetAdmin(p.id)}
+                    className="w-4 h-4 flex-shrink-0 accent-[#c9a84c]"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-oracle-text text-sm truncate">{p.email}</p>
+                    <p className="text-oracle-muted text-xs">
+                      Joined {new Date(p.created_at).toLocaleDateString()}
+                      {p.id === currentUserId && " · You"}
+                    </p>
+                  </div>
+                  {appConfig.admin_user_id === p.id && (
+                    <span className="text-xs text-oracle-gold font-semibold uppercase tracking-wider flex-shrink-0">
+                      Admin
+                    </span>
+                  )}
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Settings */}
+        <div className="bg-oracle-card border border-oracle-border rounded-2xl p-6">
+          <h2 className="text-oracle-gold font-serif text-lg mb-5">Settings</h2>
+          <div className="flex items-center justify-between gap-6">
+            <div>
+              <p className="text-oracle-text text-sm font-medium">Disable New Account Creation</p>
+              <p className="text-oracle-muted text-xs mt-1 leading-relaxed">
+                Prevent new users from signing up. Existing accounts are unaffected.
+              </p>
+            </div>
+            <button
+              role="switch"
+              aria-checked={appConfig.disable_signup}
+              onClick={onToggleDisableSignup}
+              className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors duration-200 ${
+                appConfig.disable_signup ? "bg-oracle-gold" : "bg-oracle-border"
+              }`}
+            >
+              <span
+                className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${
+                  appConfig.disable_signup ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
 // ─── Main Oracle Page ─────────────────────────────────────────────────────────
 
 export default function OraclePage() {
@@ -375,12 +472,14 @@ export default function OraclePage() {
   const [question, setQuestion] = useState("");
   const [lines, setLines] = useState<LineValue[]>([]);
   const [user, setUser] = useState<User | null>(null);
+  const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [showAuth, setShowAuth] = useState(false);
-  const [pendingSave, setPendingSave] = useState(false);
   const [showSavePrompt, setShowSavePrompt] = useState(false);
   const [history, setHistory] = useState<Reading[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [savedThisReading, setSavedThisReading] = useState(false);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
 
   const [primaryHex, setPrimaryHex] = useState<Hexagram | null>(null);
   const [transformedHex, setTransformedHex] = useState<Hexagram | null>(null);
@@ -390,7 +489,6 @@ export default function OraclePage() {
   const entropyIndexRef = useRef(0);
   const generatingRef = useRef(false);
 
-  // Keep stable refs so save callbacks always have current values
   const questionRef = useRef(question);
   const resultLinesRef = useRef(resultLines);
   const primaryHexRef = useRef(primaryHex);
@@ -405,23 +503,71 @@ export default function OraclePage() {
 
   const supabase = createClient();
 
+  // Admin when logged in AND (no admin set yet OR this user is the admin)
+  const isAdmin =
+    user !== null &&
+    appConfig !== null &&
+    (appConfig.admin_user_id === null || appConfig.admin_user_id === user.id);
+
+  // ── Data loaders ─────────────────────────────────────────────────────────
+
+  async function loadAppConfig(): Promise<AppConfig | null> {
+    const { data } = await supabase.from("app_config").select("*").single();
+    if (data) {
+      const cfg = data as AppConfig;
+      setAppConfig(cfg);
+      return cfg;
+    }
+    return null;
+  }
+
+  async function loadProfiles() {
+    const { data } = await supabase
+      .from("profiles")
+      .select("*")
+      .order("created_at", { ascending: true });
+    if (data) setProfiles(data as Profile[]);
+  }
+
+  async function upsertProfile(u: User) {
+    if (!u.email) return;
+    await supabase
+      .from("profiles")
+      .upsert({ id: u.id, email: u.email }, { onConflict: "id", ignoreDuplicates: true });
+  }
+
+  // If no admin is set and there's exactly one profile, auto-promote that user.
+  async function checkAutoAdmin(userId: string, cfg: AppConfig | null) {
+    if (!cfg || cfg.admin_user_id !== null) return;
+    const { count } = await supabase
+      .from("profiles")
+      .select("*", { count: "exact", head: true });
+    if (count === 1) {
+      await supabase.from("app_config").update({ admin_user_id: userId }).eq("id", 1);
+      await loadAppConfig();
+    }
+  }
+
   // ── Auth bootstrap ──────────────────────────────────────────────────────
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
+    loadAppConfig();
+
+    supabase.auth.getUser().then(async ({ data }) => {
       if (data.user) {
         setUser(data.user);
         loadHistory(data.user.id);
+        await upsertProfile(data.user);
+        const cfg = await loadAppConfig();
+        await checkAutoAdmin(data.user.id, cfg);
       }
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        const u = session?.user ?? null;
-        setUser(u);
-        if (u) loadHistory(u.id);
-        else setHistory([]);
-      }
-    );
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      const u = session?.user ?? null;
+      setUser(u);
+      if (u) loadHistory(u.id);
+      else setHistory([]);
+    });
 
     return () => listener.subscription.unsubscribe();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -464,21 +610,13 @@ export default function OraclePage() {
     }
   }
 
-  // No auto-save — logged-in users save manually via the Save button.
-
   // ── Mouse entropy ───────────────────────────────────────────────────────
   useEffect(() => {
     if (phase !== "oracle") return;
-
     const handler = (e: MouseEvent) => {
-      entropyRef.current.push(
-        (e.clientX ^ e.clientY ^ (Date.now() & 0xffff)) >>> 0
-      );
-      if (entropyRef.current.length > 500) {
-        entropyRef.current = entropyRef.current.slice(-200);
-      }
+      entropyRef.current.push((e.clientX ^ e.clientY ^ (Date.now() & 0xffff)) >>> 0);
+      if (entropyRef.current.length > 500) entropyRef.current = entropyRef.current.slice(-200);
     };
-
     window.addEventListener("mousemove", handler);
     return () => window.removeEventListener("mousemove", handler);
   }, [phase]);
@@ -495,7 +633,6 @@ export default function OraclePage() {
 
     function scheduleNext() {
       if (cancelled) return;
-
       if (lineCount >= 6) {
         const primaryNum = getHexagramNumber(generatedLines);
         const transformedNum = getTransformedHexagramNumber(generatedLines);
@@ -506,9 +643,7 @@ export default function OraclePage() {
         generatingRef.current = false;
         return;
       }
-
       const delay = lineCount === 0 ? 2200 : 1000 + Math.random() * 800;
-
       setTimeout(() => {
         if (cancelled) return;
         const val = generateLineValue();
@@ -520,17 +655,12 @@ export default function OraclePage() {
     }
 
     scheduleNext();
-
-    return () => {
-      cancelled = true;
-      generatingRef.current = false;
-    };
+    return () => { cancelled = true; generatingRef.current = false; };
   }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function generateLineValue(): LineValue {
     const buf = entropyRef.current;
     let a: number, b: number, c: number;
-
     if (buf.length >= 3) {
       const i = entropyIndexRef.current;
       a = buf[i % buf.length];
@@ -542,7 +672,6 @@ export default function OraclePage() {
       b = (Math.random() * 0xffff) | 0;
       c = (Math.random() * 0xffff) | 0;
     }
-
     const coin1 = (a >> (entropyIndexRef.current % 8)) & 1;
     const coin2 = (b >> ((entropyIndexRef.current + 1) % 8)) & 1;
     const coin3 = (c >> ((entropyIndexRef.current + 2) % 8)) & 1;
@@ -559,7 +688,6 @@ export default function OraclePage() {
     setTransformedHex(null);
     setResultLines([]);
     setSavedThisReading(false);
-    setPendingSave(false);
     setShowSavePrompt(false);
     entropyRef.current = [];
     entropyIndexRef.current = 0;
@@ -574,7 +702,6 @@ export default function OraclePage() {
     setTransformedHex(null);
     setResultLines([]);
     setSavedThisReading(false);
-    setPendingSave(false);
     setShowSavePrompt(false);
     setShowHistory(false);
     entropyRef.current = [];
@@ -583,33 +710,18 @@ export default function OraclePage() {
     setPhase("intro");
   }
 
-  function handleSignInToSave() {
-    setPendingSave(true);
-    setShowAuth(true);
-  }
-
-  function handlePostAuth(u: User) {
+  async function handlePostAuth(u: User) {
     setUser(u);
     setShowAuth(false);
+    await upsertProfile(u);
+    const cfg = await loadAppConfig();
+    await checkAutoAdmin(u.id, cfg);
     loadHistory(u.id);
-
-    // If triggered from "Sign in to Save", resume the save flow now
-    if (pendingSave && phase === "result" && primaryHexRef.current && !savedRef.current) {
-      setPendingSave(false);
-      startSaveFlow(u);
-    } else {
-      setPendingSave(false);
-    }
   }
 
   function handleSavePromptSubmit(note: string) {
     setShowSavePrompt(false);
     if (user) performSave(user, note || "");
-  }
-
-  function handleSavePrivate() {
-    setShowSavePrompt(false);
-    if (user) performSave(user, "");
   }
 
   async function handleDeleteReading(id: string) {
@@ -624,12 +736,29 @@ export default function OraclePage() {
     setLines(lv);
     setQuestion(r.question);
     setPrimaryHex(getHexagram(r.primary_hexagram));
-    setTransformedHex(
-      r.transformed_hexagram ? getHexagram(r.transformed_hexagram) : null
-    );
+    setTransformedHex(r.transformed_hexagram ? getHexagram(r.transformed_hexagram) : null);
     setSavedThisReading(true);
     setPhase("result");
     setShowHistory(false);
+  }
+
+  async function handleSetAdmin(userId: string) {
+    await supabase.from("app_config").update({ admin_user_id: userId }).eq("id", 1);
+    await loadAppConfig();
+  }
+
+  async function handleToggleDisableSignup() {
+    if (!appConfig) return;
+    await supabase
+      .from("app_config")
+      .update({ disable_signup: !appConfig.disable_signup })
+      .eq("id", 1);
+    await loadAppConfig();
+  }
+
+  async function openAdminPanel() {
+    await loadProfiles();
+    setShowAdminPanel(true);
   }
 
   const changingLineIndices = resultLines
@@ -666,12 +795,22 @@ export default function OraclePage() {
         <div className="flex items-center gap-3">
           {user ? (
             <>
-              <button
-                onClick={() => setShowHistory(!showHistory)}
-                className="text-sm text-oracle-gold hover:text-oracle-gold-light border border-oracle-border hover:border-oracle-gold/40 rounded-lg px-3 py-1.5 transition-all"
-              >
-                {showHistory ? "Close History" : "My History"}
-              </button>
+              {isAdmin && (
+                <button
+                  onClick={() => setShowHistory(!showHistory)}
+                  className="text-sm text-oracle-gold hover:text-oracle-gold-light border border-oracle-border hover:border-oracle-gold/40 rounded-lg px-3 py-1.5 transition-all"
+                >
+                  {showHistory ? "Close History" : "My History"}
+                </button>
+              )}
+              {isAdmin && (
+                <button
+                  onClick={openAdminPanel}
+                  className="text-sm text-oracle-muted hover:text-oracle-gold border border-oracle-border hover:border-oracle-gold/40 rounded-lg px-3 py-1.5 transition-all"
+                >
+                  Admin
+                </button>
+              )}
               <span className="text-oracle-muted text-sm hidden sm:block truncate max-w-32">
                 {user.email}
               </span>
@@ -693,14 +832,18 @@ export default function OraclePage() {
         </div>
       </header>
 
-      {/* History slide-down */}
-      {showHistory && user && (
+      {/* History slide-down — admin only */}
+      {showHistory && user && isAdmin && (
         <div className="border-b border-oracle-border/40 bg-oracle-surface/80 px-6 py-4 fade-in">
           <div className="max-w-2xl mx-auto">
             <h3 className="text-oracle-gold font-serif mb-3 text-sm uppercase tracking-widest">
               Your Reading History
             </h3>
-            <HistoryPanel history={history} onSelect={handleSelectHistory} onDelete={handleDeleteReading} />
+            <HistoryPanel
+              history={history}
+              onSelect={handleSelectHistory}
+              onDelete={handleDeleteReading}
+            />
           </div>
         </div>
       )}
@@ -743,16 +886,13 @@ export default function OraclePage() {
                   </li>
                   <li>
                     <span className="text-orange-400 font-semibold">Orange lines</span>{" "}
-                    are changing lines — they transform the hexagram into a
-                    second one, showing your situation in motion.
+                    are changing lines — they transform the hexagram into a second
+                    one, showing your situation in motion.
                   </li>
                 </ol>
               </div>
 
-              <form
-                onSubmit={handleAskQuestion}
-                className="max-w-lg mx-auto space-y-4"
-              >
+              <form onSubmit={handleAskQuestion} className="max-w-lg mx-auto space-y-4">
                 <div>
                   <label className="block text-xs text-oracle-muted mb-2 uppercase tracking-widest">
                     Your Question
@@ -830,7 +970,6 @@ export default function OraclePage() {
                   {Array.from({ length: 6 }).map((_, displayIdx) => {
                     const lineIdx = 5 - displayIdx;
                     const lineVal = lines[lineIdx];
-
                     if (lineVal === undefined) {
                       return (
                         <div key={displayIdx} className="flex justify-center items-center my-2 h-5">
@@ -841,7 +980,6 @@ export default function OraclePage() {
                         </div>
                       );
                     }
-
                     return (
                       <div key={displayIdx} className="slide-up">
                         <HexagramLine value={lineVal} index={displayIdx} animate />
@@ -873,9 +1011,7 @@ export default function OraclePage() {
 
               <div
                 className={`flex gap-6 ${
-                  transformedHex
-                    ? "flex-col md:flex-row"
-                    : "justify-center max-w-sm mx-auto"
+                  transformedHex ? "flex-col md:flex-row" : "justify-center max-w-sm mx-auto"
                 }`}
               >
                 <HexagramCard
@@ -892,14 +1028,9 @@ export default function OraclePage() {
                       <span className="text-2xl md:rotate-0 rotate-90">→</span>
                       <div className="hidden md:block h-12 w-px bg-oracle-gold/20" />
                     </div>
-
                     <HexagramCard
                       hexagram={transformedHex}
-                      lines={
-                        resultLines.map((l) =>
-                          l === 6 ? 7 : l === 9 ? 8 : l
-                        ) as LineValue[]
-                      }
+                      lines={resultLines.map((l) => (l === 6 ? 7 : l === 9 ? 8 : l)) as LineValue[]}
                       title="Transformed Hexagram"
                     />
                   </>
@@ -913,23 +1044,15 @@ export default function OraclePage() {
                 >
                   Ask Again
                 </button>
-                {!user && (
+                {isAdmin && !savedThisReading && (
                   <button
-                    onClick={handleSignInToSave}
-                    className="border border-oracle-gold/40 hover:border-oracle-gold text-oracle-gold hover:text-oracle-gold-light px-6 py-2.5 rounded-xl transition-all text-sm"
-                  >
-                    Sign in to Save
-                  </button>
-                )}
-                {user && !savedThisReading && (
-                  <button
-                    onClick={() => startSaveFlow(user)}
+                    onClick={() => startSaveFlow(user!)}
                     className="border border-oracle-gold/40 hover:border-oracle-gold text-oracle-gold hover:text-oracle-gold-light px-6 py-2.5 rounded-xl transition-all text-sm"
                   >
                     Save Reading
                   </button>
                 )}
-                {user && savedThisReading && (
+                {isAdmin && savedThisReading && (
                   <span className="text-oracle-muted text-sm self-center">
                     ✓ Saved to your history
                   </span>
@@ -946,15 +1069,24 @@ export default function OraclePage() {
 
       {showAuth && (
         <AuthModal
-          onClose={() => { setShowAuth(false); setPendingSave(false); }}
+          onClose={() => setShowAuth(false)}
           onAuth={handlePostAuth}
-          pendingSave={pendingSave}
+          disableSignup={appConfig?.disable_signup ?? false}
         />
       )}
 
       {showSavePrompt && (
-        <SavePromptModal
-          onSave={handleSavePromptSubmit}
+        <SavePromptModal onSave={handleSavePromptSubmit} />
+      )}
+
+      {showAdminPanel && user && appConfig && (
+        <AdminPanel
+          profiles={profiles}
+          appConfig={appConfig}
+          currentUserId={user.id}
+          onSetAdmin={handleSetAdmin}
+          onToggleDisableSignup={handleToggleDisableSignup}
+          onClose={() => setShowAdminPanel(false)}
         />
       )}
     </div>
