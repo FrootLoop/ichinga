@@ -722,8 +722,8 @@ export default function OraclePage() {
                 <h3 className="text-oracle-gold font-serif text-lg">How to Consult</h3>
                 <ol className="space-y-2 text-oracle-text text-sm list-decimal list-inside leading-relaxed">
                   <li>
-                    Optionally, form a question in your mind and type it below —
-                    or leave it blank to cast a private reading.
+                    In your mind, form a question to ask the Oracle. Type it
+                    below — or leave it blank to cast a private reading.
                   </li>
                   <li>
                     Press <em>Ask the Oracle</em> and move your mouse in free,
@@ -747,7 +747,7 @@ export default function OraclePage() {
               >
                 <div>
                   <label className="block text-xs text-oracle-muted mb-2 uppercase tracking-widest">
-                    Your Question — Optional
+                    Your Question
                   </label>
                   <textarea
                     value={question}
