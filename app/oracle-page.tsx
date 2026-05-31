@@ -40,8 +40,8 @@ function HexagramLine({
   return (
     // Outer row centres the inner line box; circle is anchored to the line, not the card edge
     <div
-      className={`flex justify-center items-center my-2 ${animate ? "line-draw" : ""}`}
-      style={{ animationDelay: animate ? `${index * 0.05}s` : undefined }}
+      className={`flex justify-center items-center ${animate ? "line-draw" : ""}`}
+      style={{ marginTop: "0.65rem", marginBottom: "0.65rem", animationDelay: animate ? `${index * 0.05}s` : undefined }}
     >
       {/* Line box — fixed at 56 % of card width (25 % shorter than previous 75 %).
           `relative` lets the ○ escape rightward without affecting line width. */}
@@ -137,10 +137,8 @@ function HexagramCard({
 
 function SavePromptModal({
   onSave,
-  onSavePrivate,
 }: {
   onSave: (note: string) => void;
-  onSavePrivate: () => void;
 }) {
   const [note, setNote] = useState("");
 
@@ -152,7 +150,7 @@ function SavePromptModal({
         </h2>
         <p className="text-oracle-muted text-sm mb-5 leading-relaxed">
           You cast this reading without a question. Add a note to help you
-          remember what it was about — or save it as a private reading.
+          remember what it was about — or save it without one.
         </p>
         <textarea
           value={note}
@@ -162,20 +160,12 @@ function SavePromptModal({
           autoFocus
           className="w-full bg-oracle-surface border border-oracle-border focus:border-oracle-gold rounded-xl px-4 py-3 text-oracle-text placeholder-oracle-muted/60 focus:outline-none transition-colors resize-none text-sm mb-4"
         />
-        <div className="flex gap-3">
-          <button
-            onClick={() => onSave(note.trim())}
-            className="flex-1 bg-oracle-gold hover:bg-oracle-gold-light text-oracle-bg font-bold py-2.5 rounded-lg transition-colors text-sm"
-          >
-            {note.trim() ? "Save with Note" : "Save Reading"}
-          </button>
-          <button
-            onClick={onSavePrivate}
-            className="flex-1 border border-oracle-border hover:border-oracle-gold/40 text-oracle-muted hover:text-oracle-text py-2.5 rounded-lg transition-all text-sm"
-          >
-            Save as Private
-          </button>
-        </div>
+        <button
+          onClick={() => onSave(note.trim())}
+          className="w-full bg-oracle-gold hover:bg-oracle-gold-light text-oracle-bg font-bold py-2.5 rounded-lg transition-colors text-sm"
+        >
+          {note.trim() ? "Save with Note" : "Save Reading"}
+        </button>
       </div>
     </div>
   );
@@ -965,7 +955,6 @@ export default function OraclePage() {
       {showSavePrompt && (
         <SavePromptModal
           onSave={handleSavePromptSubmit}
-          onSavePrivate={handleSavePrivate}
         />
       )}
     </div>
