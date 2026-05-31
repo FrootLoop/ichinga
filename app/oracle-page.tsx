@@ -38,28 +38,34 @@ function HexagramLine({
   const color = isChanging ? "#f97316" : "#1a1a1a";
 
   return (
+    // Outer row centres the inner line box; circle is anchored to the line, not the card edge
     <div
-      className={`relative flex justify-center items-center my-2 ${animate ? "line-draw" : ""}`}
+      className={`flex justify-center items-center my-2 ${animate ? "line-draw" : ""}`}
       style={{ animationDelay: animate ? `${index * 0.05}s` : undefined }}
     >
-      <div style={{ width: "75%" }}>
+      {/* Line box — fixed at 56 % of card width (25 % shorter than previous 75 %).
+          `relative` lets the ○ escape rightward without affecting line width. */}
+      <div className="relative" style={{ width: "56%" }}>
         {isYang ? (
           <div className="h-5 w-full rounded" style={{ backgroundColor: color }} />
         ) : (
-          <div className="flex w-full gap-4">
+          // Gap increased ~33 %: was 16 px (gap-4), now 21 px
+          <div className="flex w-full" style={{ gap: "21px" }}>
             <div className="h-5 flex-1 rounded" style={{ backgroundColor: color }} />
             <div className="h-5 flex-1 rounded" style={{ backgroundColor: color }} />
           </div>
         )}
+
+        {/* ○ placed just outside the right edge of the line — not at the card margin */}
+        {isChanging && (
+          <span
+            className="absolute top-1/2 -translate-y-1/2 text-sm font-bold leading-none select-none"
+            style={{ color: "#f97316", left: "calc(100% + 6px)" }}
+          >
+            ○
+          </span>
+        )}
       </div>
-      {isChanging && (
-        <span
-          className="absolute right-0 text-sm font-bold leading-none"
-          style={{ color: "#f97316" }}
-        >
-          ○
-        </span>
-      )}
     </div>
   );
 }
@@ -764,7 +770,7 @@ export default function OraclePage() {
                   <textarea
                     value={question}
                     onChange={(e) => setQuestion(e.target.value)}
-                    placeholder="Leave blank for a private casting, or write your question here…"
+                    placeholder="Leave blank for a private reading, or write your question here…"
                     rows={3}
                     className="w-full bg-oracle-surface border border-oracle-border focus:border-oracle-gold rounded-xl px-4 py-3 text-oracle-text placeholder-oracle-muted/60 focus:outline-none transition-colors resize-none text-sm"
                   />
@@ -837,10 +843,10 @@ export default function OraclePage() {
 
                     if (lineVal === undefined) {
                       return (
-                        <div key={displayIdx} className="relative flex justify-center items-center my-2 h-5">
+                        <div key={displayIdx} className="flex justify-center items-center my-2 h-5">
                           <div
                             className="border-b-2 border-dashed border-gray-200"
-                            style={{ width: "75%" }}
+                            style={{ width: "56%" }}
                           />
                         </div>
                       );
