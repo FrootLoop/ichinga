@@ -196,6 +196,21 @@ function AuthModal({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+
+    // Supabase auth requires Latin-1 characters only (code points 0–255).
+    // Characters above 255 (e.g. an invisible BOM pasted from a rich-text
+    // source) cause an opaque ByteString error from the API.
+    for (let i = 0; i < password.length; i++) {
+      if (password.charCodeAt(i) > 255) {
+        setError(
+          "Your password contains an unsupported character. " +
+          "Please type it manually rather than pasting, or use only " +
+          "standard letters, numbers, and symbols."
+        );
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
