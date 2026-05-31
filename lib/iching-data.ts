@@ -6,18 +6,18 @@ export interface Hexagram {
   lines: [string, string, string, string, string, string];
 }
 
-// Lookup table: HEXAGRAM_TABLE[upper_trigram][lower_trigram] = hexagram number
+// Lookup table: HEXAGRAM_TABLE[lower_trigram][upper_trigram] = hexagram number
 // Trigram binary values (lines bottom to top, yang=1 yin=0):
 // Kun=0(000), Zhen=1(001), Kan=2(010), Dui=3(011), Gen=4(100), Li=5(101), Xun=6(110), Qian=7(111)
 const HEXAGRAM_TABLE: number[][] = [
-  [2,  16, 8,  45, 23, 35, 20, 12], // upper = Kun  (0)
-  [24, 51, 3,  17, 27, 21, 42, 25], // upper = Zhen (1)
-  [7,  40, 29, 47, 4,  64, 59, 6],  // upper = Kan  (2)
-  [19, 54, 60, 58, 41, 38, 61, 10], // upper = Dui  (3)
-  [15, 62, 39, 31, 52, 56, 53, 33], // upper = Gen  (4)
-  [36, 55, 63, 49, 22, 30, 37, 13], // upper = Li   (5)
-  [46, 32, 48, 28, 18, 50, 57, 44], // upper = Xun  (6)
-  [11, 34, 5,  43, 26, 14, 9,  1],  // upper = Qian (7)
+  [2,  16, 8,  45, 23, 35, 20, 12], // lower = Kun  (0)
+  [24, 51, 3,  17, 27, 21, 42, 25], // lower = Zhen (1)
+  [7,  40, 29, 47, 4,  64, 59, 6],  // lower = Kan  (2)
+  [19, 54, 60, 58, 41, 38, 61, 10], // lower = Dui  (3)
+  [15, 62, 39, 31, 52, 56, 53, 33], // lower = Gen  (4)
+  [36, 55, 63, 49, 22, 30, 37, 13], // lower = Li   (5)
+  [46, 32, 48, 28, 18, 50, 57, 44], // lower = Xun  (6)
+  [11, 34, 5,  43, 26, 14, 9,  1],  // lower = Qian (7)
 ];
 
 export function getHexagramNumber(lines: number[]): number {
@@ -30,7 +30,7 @@ export function getHexagramNumber(lines: number[]): number {
     (isYang(lines[3]) ? 1 : 0) |
     (isYang(lines[4]) ? 2 : 0) |
     (isYang(lines[5]) ? 4 : 0);
-  return HEXAGRAM_TABLE[upper][lower];
+  return HEXAGRAM_TABLE[lower][upper];
 }
 
 export function getTransformedHexagramNumber(lines: number[]): number | null {
