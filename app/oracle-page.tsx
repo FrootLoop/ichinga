@@ -313,9 +313,11 @@ function AuthModal({
 function HistoryPanel({
   history,
   onSelect,
+  onDelete,
 }: {
   history: Reading[];
   onSelect: (r: Reading) => void;
+  onDelete: (id: string) => void;
 }) {
   if (history.length === 0) {
     return (
@@ -333,28 +335,37 @@ function HistoryPanel({
           ? getHexagram(r.transformed_hexagram)
           : null;
         return (
-          <button
-            key={r.id}
-            onClick={() => onSelect(r)}
-            className="w-full text-left bg-oracle-surface hover:bg-oracle-card border border-oracle-border hover:border-oracle-gold/40 rounded-xl p-3 transition-all group"
-          >
-            <p className="text-xs text-oracle-muted mb-1">
-              {new Date(r.created_at).toLocaleString(undefined, {
-                year: "numeric",
-                month: "short",
-                day: "numeric",
-                hour: "numeric",
-                minute: "2-digit",
-              })}
-            </p>
-            <p className="text-sm text-oracle-text line-clamp-2 mb-1 group-hover:text-oracle-gold-light transition-colors">
-              {r.question || "Private Reading"}
-            </p>
-            <p className="text-xs text-oracle-gold">
-              {primary.number}. {primary.name}
-              {transformed && ` → ${transformed.number}. ${transformed.name}`}
-            </p>
-          </button>
+          <div key={r.id} className="relative group/row">
+            <button
+              onClick={() => onSelect(r)}
+              className="w-full text-left bg-oracle-surface hover:bg-oracle-card border border-oracle-border hover:border-oracle-gold/40 rounded-xl p-3 pr-9 transition-all group"
+            >
+              <p className="text-xs text-oracle-muted mb-1">
+                {new Date(r.created_at).toLocaleString(undefined, {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                })}
+              </p>
+              <p className="text-sm text-oracle-text line-clamp-2 mb-1 group-hover:text-oracle-gold-light transition-colors">
+                {r.question || "Private Reading"}
+              </p>
+              <p className="text-xs text-oracle-gold">
+                {primary.number}. {primary.name}
+                {transformed && ` → ${transformed.number}. ${transformed.name}`}
+              </p>
+            </button>
+            {/* Delete button — appears on row hover */}
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(r.id); }}
+              className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded-md text-oracle-muted hover:text-red-400 hover:bg-red-900/20 opacity-0 group-hover/row:opacity-100 transition-all text-sm leading-none"
+              title="Delete reading"
+            >
+              ×
+            </button>
+          </div>
         );
       })}
     </div>
@@ -457,13 +468,7 @@ export default function OraclePage() {
     }
   }
 
-  // ── Auto-save when result arrives for already-logged-in users ───────────
-  // Only depends on `phase` — sign-in flow handles its own save path
-  useEffect(() => {
-    if (phase !== "result") return;
-    if (!user || !primaryHex || savedThisReading) return;
-    startSaveFlow(user);
-  }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
+  // No auto-save — logged-in users save manually via the Save button.
 
   // ── Mouse entropy ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -575,6 +580,7 @@ export default function OraclePage() {
     setSavedThisReading(false);
     setPendingSave(false);
     setShowSavePrompt(false);
+    setShowHistory(false);
     entropyRef.current = [];
     entropyIndexRef.current = 0;
     generatingRef.current = false;
@@ -608,6 +614,12 @@ export default function OraclePage() {
   function handleSavePrivate() {
     setShowSavePrompt(false);
     if (user) performSave(user, "");
+  }
+
+  async function handleDeleteReading(id: string) {
+    if (!user) return;
+    await supabase.from("readings").delete().eq("id", id).eq("user_id", user.id);
+    setHistory((prev) => prev.filter((r) => r.id !== id));
   }
 
   function handleSelectHistory(r: Reading) {
@@ -692,7 +704,7 @@ export default function OraclePage() {
             <h3 className="text-oracle-gold font-serif mb-3 text-sm uppercase tracking-widest">
               Your Reading History
             </h3>
-            <HistoryPanel history={history} onSelect={handleSelectHistory} />
+            <HistoryPanel history={history} onSelect={handleSelectHistory} onDelete={handleDeleteReading} />
           </div>
         </div>
       )}
@@ -911,6 +923,14 @@ export default function OraclePage() {
                     className="border border-oracle-gold/40 hover:border-oracle-gold text-oracle-gold hover:text-oracle-gold-light px-6 py-2.5 rounded-xl transition-all text-sm"
                   >
                     Sign in to Save
+                  </button>
+                )}
+                {user && !savedThisReading && (
+                  <button
+                    onClick={() => startSaveFlow(user)}
+                    className="border border-oracle-gold/40 hover:border-oracle-gold text-oracle-gold hover:text-oracle-gold-light px-6 py-2.5 rounded-xl transition-all text-sm"
+                  >
+                    Save Reading
                   </button>
                 )}
                 {user && savedThisReading && (
