@@ -150,7 +150,7 @@ function HexagramCard({
             Changing Lines
           </p>
           <div className="space-y-2">
-            {changingLineIndices.map((lineIdx) => (
+            {[...changingLineIndices].reverse().map((lineIdx) => (
               <div key={lineIdx} className="flex gap-2">
                 <span className="text-orange-500 font-bold text-sm flex-shrink-0 mt-0.5">
                   {lineIdx + 1}
