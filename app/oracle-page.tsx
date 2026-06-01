@@ -106,11 +106,13 @@ function HexagramCard({
   lines,
   title,
   changingLineIndices,
+  isRTL,
 }: {
   hexagram: Hexagram;
   lines: LineValue[];
   title: string;
   changingLineIndices?: number[];
+  isRTL?: boolean;
 }) {
   const displayLines = [...lines].reverse();
 
@@ -135,7 +137,10 @@ function HexagramCard({
         ))}
       </div>
 
-      <p className="text-sm text-gray-700 leading-relaxed mb-4 italic">
+      <p
+        dir={isRTL ? "rtl" : undefined}
+        className="text-sm text-gray-700 leading-relaxed mb-4 italic"
+      >
         {hexagram.judgment}
       </p>
 
@@ -146,11 +151,14 @@ function HexagramCard({
           </p>
           <div className="space-y-2">
             {changingLineIndices.map((lineIdx) => (
-              <div key={lineIdx} className="flex gap-2">
+              <div key={lineIdx} className={`flex gap-2 ${isRTL ? "flex-row-reverse" : ""}`}>
                 <span className="text-orange-500 font-bold text-sm flex-shrink-0 mt-0.5">
                   {lineIdx + 1}
                 </span>
-                <p className="text-sm text-gray-600 leading-relaxed">
+                <p
+                  dir={isRTL ? "rtl" : undefined}
+                  className="text-sm text-gray-600 leading-relaxed"
+                >
                   {hexagram.lines[lineIdx]}
                 </p>
               </div>
@@ -1247,6 +1255,9 @@ export default function OraclePage() {
     .map((v, i) => (v === 6 || v === 9 ? i : -1))
     .filter((i) => i !== -1);
 
+  const RTL_TRANSLATIONS = new Set(["fa"]);
+  const cardIsRTL = RTL_TRANSLATIONS.has(currentTranslationId);
+
   const questionDisplay = question.trim() ? `"${question}"` : "The Question is Private";
 
   // ── Render ───────────────────────────────────────────────────────────────
@@ -1560,6 +1571,7 @@ export default function OraclePage() {
                   lines={resultLines}
                   title={transformedHex ? "Present Hexagram" : "Your Hexagram"}
                   changingLineIndices={transformedHex ? changingLineIndices : undefined}
+                  isRTL={cardIsRTL}
                 />
 
                 {transformedHex && (
@@ -1573,6 +1585,7 @@ export default function OraclePage() {
                       hexagram={transformedHex}
                       lines={resultLines.map((l) => (l === 6 ? 7 : l === 9 ? 8 : l)) as LineValue[]}
                       title="Transformed Hexagram"
+                      isRTL={cardIsRTL}
                     />
                   </>
                 )}
