@@ -9,6 +9,7 @@ import {
   type Hexagram,
 } from "@/lib/iching-data";
 import { getHexagramFr } from "@/lib/iching-data-fr";
+import { getHexagramFa } from "@/lib/iching-data-fa";
 import type { User } from "@supabase/supabase-js";
 
 type Phase = "intro" | "oracle" | "result";
@@ -52,6 +53,7 @@ interface Translation {
 
 function getHexagramForTranslation(number: number, translationId: string): Hexagram {
   if (translationId === "fr") return getHexagramFr(number);
+  if (translationId === "fa") return getHexagramFa(number);
   return getHexagram(number);
 }
 
