@@ -117,7 +117,10 @@ function HexagramCard({
   const displayLines = [...lines].reverse();
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-2xl flex-1 min-w-0">
+    <div
+      dir={isRTL ? "rtl" : undefined}
+      className="bg-white rounded-2xl p-6 shadow-2xl flex-1 min-w-0"
+    >
       <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-1">
         {title}
       </p>
@@ -137,10 +140,7 @@ function HexagramCard({
         ))}
       </div>
 
-      <p
-        dir={isRTL ? "rtl" : undefined}
-        className="text-sm text-gray-700 leading-relaxed mb-4 italic"
-      >
+      <p className="text-sm text-gray-700 leading-relaxed mb-4 italic">
         {hexagram.judgment}
       </p>
 
@@ -151,14 +151,11 @@ function HexagramCard({
           </p>
           <div className="space-y-2">
             {changingLineIndices.map((lineIdx) => (
-              <div key={lineIdx} className={`flex gap-2 ${isRTL ? "flex-row-reverse" : ""}`}>
+              <div key={lineIdx} className="flex gap-2">
                 <span className="text-orange-500 font-bold text-sm flex-shrink-0 mt-0.5">
                   {lineIdx + 1}
                 </span>
-                <p
-                  dir={isRTL ? "rtl" : undefined}
-                  className="text-sm text-gray-600 leading-relaxed"
-                >
+                <p className="text-sm text-gray-600 leading-relaxed">
                   {hexagram.lines[lineIdx]}
                 </p>
               </div>
