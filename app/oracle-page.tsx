@@ -478,6 +478,11 @@ export default function OraclePage() {
 
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [debugEntries, setDebugEntries] = useState<DebugEntry[]>([]);
+  const [pendingResult, setPendingResult] = useState<{
+    primary: Hexagram;
+    transformed: Hexagram | null;
+    lines: LineValue[];
+  } | null>(null);
 
   const entropyRef = useRef<number[]>([]);
   const entropyIndexRef = useRef(0);
@@ -643,10 +648,11 @@ export default function OraclePage() {
       if (lineCount >= 6) {
         const primaryNum = getHexagramNumber(generatedLines);
         const transformedNum = getTransformedHexagramNumber(generatedLines);
-        setResultLines([...generatedLines]);
-        setPrimaryHex(getHexagram(primaryNum));
-        setTransformedHex(transformedNum ? getHexagram(transformedNum) : null);
-        setPhase("result");
+        setPendingResult({
+          primary: getHexagram(primaryNum),
+          transformed: transformedNum ? getHexagram(transformedNum) : null,
+          lines: [...generatedLines],
+        });
         generatingRef.current = false;
         return;
       }
@@ -700,6 +706,7 @@ export default function OraclePage() {
     setShowSavePrompt(false);
     setDebugEntries([]);
     setMousePos({ x: 0, y: 0 });
+    setPendingResult(null);
     entropyRef.current = [];
     entropyIndexRef.current = 0;
     generatingRef.current = false;
@@ -717,10 +724,20 @@ export default function OraclePage() {
     setShowHistory(false);
     setDebugEntries([]);
     setMousePos({ x: 0, y: 0 });
+    setPendingResult(null);
     entropyRef.current = [];
     entropyIndexRef.current = 0;
     generatingRef.current = false;
     setPhase("intro");
+  }
+
+  function handleProceed() {
+    if (!pendingResult) return;
+    setResultLines(pendingResult.lines);
+    setPrimaryHex(pendingResult.primary);
+    setTransformedHex(pendingResult.transformed);
+    setPendingResult(null);
+    setPhase("result");
   }
 
   function handlePostAuth(_u: User) {
@@ -1004,18 +1021,19 @@ export default function OraclePage() {
                 </div>
 
                 {/* Debug panel */}
-                <div className="bg-oracle-card border border-oracle-border rounded-2xl p-4 w-52 font-mono text-xs self-stretch">
-                  <p className="text-oracle-gold uppercase tracking-widest text-xs font-semibold mb-3">
+                <div className="bg-oracle-card border border-oracle-border rounded-2xl p-4 w-52 font-mono text-xs flex flex-col gap-3">
+                  <p className="text-oracle-gold uppercase tracking-widest text-xs font-semibold">
                     Debug
                   </p>
-                  <div className="mb-3 pb-3 border-b border-oracle-border/60">
+                  <div className="pb-3 border-b border-oracle-border/60">
                     <span className="text-oracle-muted">mouse </span>
                     <span className="text-oracle-text">
                       {mousePos.x}, {mousePos.y}
                     </span>
                   </div>
-                  <div className="space-y-2">
-                    {debugEntries.map((e) => {
+                  {/* Entries reversed so L6 is at top, L1 at bottom — matches hexagram visual */}
+                  <div className="space-y-2 flex-1">
+                    {[...debugEntries].reverse().map((e) => {
                       const isChanging = e.value === 6 || e.value === 9;
                       return (
                         <div key={e.line}>
@@ -1034,6 +1052,13 @@ export default function OraclePage() {
                       );
                     })}
                   </div>
+                  <button
+                    onClick={handleProceed}
+                    disabled={pendingResult === null}
+                    className="w-full bg-oracle-gold hover:bg-oracle-gold-light disabled:opacity-30 disabled:cursor-not-allowed text-oracle-bg font-bold py-2 rounded-lg transition-all text-xs tracking-wide"
+                  >
+                    Proceed
+                  </button>
                 </div>
               </div>
             </div>
