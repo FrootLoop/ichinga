@@ -1057,7 +1057,7 @@ export default function OraclePage() {
               </div>
 
               {/* Casting Status panel — fixed size, height locked to "Move your mouse" state */}
-              <div className="border border-oracle-gold/30 rounded-2xl px-10 py-4 text-center w-80 h-24 flex flex-col items-center justify-center bg-oracle-surface/40">
+              <div className="border border-oracle-gold/30 rounded-2xl px-10 py-4 text-center w-80 h-24 flex flex-col items-center justify-start bg-oracle-surface/40">
                 {lines.length >= 6 ? (
                   <p className="text-oracle-gold text-sm font-semibold">
                     ✦ Hexagram complete. ✦
