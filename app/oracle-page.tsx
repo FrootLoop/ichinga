@@ -609,17 +609,21 @@ function AdminPanel({
   profiles,
   appConfig,
   currentUserId,
+  translations,
   onSetAdmin,
   onToggleDisableSignup,
   onToggleCastingDebug,
+  onToggleTranslationAdminOnly,
   onClose,
 }: {
   profiles: Profile[];
   appConfig: AppConfig;
   currentUserId: string;
+  translations: Translation[];
   onSetAdmin: (userId: string) => void;
   onToggleDisableSignup: () => void;
   onToggleCastingDebug: () => void;
+  onToggleTranslationAdminOnly: (id: string, current: boolean) => void;
   onClose: () => void;
 }) {
   return (
@@ -735,6 +739,51 @@ function AdminPanel({
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Translations */}
+        <div className="bg-oracle-card border border-oracle-border rounded-2xl p-6">
+          <h2 className="text-oracle-gold font-serif text-lg mb-1">Translations</h2>
+          <p className="text-oracle-muted text-sm mb-5 leading-relaxed">
+            Toggle which translations are available to all users. Admin-only translations are hidden from non-admin accounts.
+          </p>
+          {translations.length === 0 ? (
+            <p className="text-oracle-muted text-sm italic">No translations found.</p>
+          ) : (
+            <div className="space-y-2">
+              {translations.map((t) => (
+                <div
+                  key={t.id}
+                  className="flex items-center justify-between gap-6 bg-oracle-surface border border-oracle-border rounded-xl px-4 py-3"
+                >
+                  <div>
+                    <p className="text-oracle-text text-sm font-medium">{t.name}</p>
+                    <p className="text-oracle-muted text-xs mt-0.5 uppercase tracking-wider">{t.id}</p>
+                  </div>
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <span className="text-oracle-muted text-xs">
+                      {t.admin_only ? "Admin only" : "All users"}
+                    </span>
+                    <button
+                      role="switch"
+                      aria-checked={t.admin_only}
+                      onClick={() => onToggleTranslationAdminOnly(t.id, t.admin_only)}
+                      className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
+                        t.admin_only ? "bg-oracle-gold" : "bg-oracle-border"
+                      }`}
+                      title={t.admin_only ? "Click to make available to all users" : "Click to restrict to admin only"}
+                    >
+                      <span
+                        className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${
+                          t.admin_only ? "translate-x-5" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </main>
     </div>
@@ -1174,6 +1223,11 @@ export default function OraclePage() {
     await loadAppConfig();
   }
 
+  async function handleToggleTranslationAdminOnly(id: string, current: boolean) {
+    await supabase.from("translations").update({ admin_only: !current }).eq("id", id);
+    await loadTranslations();
+  }
+
   async function openAdminPanel() {
     await loadProfiles();
     setShowAdminPanel(true);
@@ -1567,9 +1621,11 @@ export default function OraclePage() {
           profiles={profiles}
           appConfig={appConfig}
           currentUserId={user.id}
+          translations={allTranslations}
           onSetAdmin={handleSetAdmin}
           onToggleDisableSignup={handleToggleDisableSignup}
           onToggleCastingDebug={handleToggleCastingDebug}
+          onToggleTranslationAdminOnly={handleToggleTranslationAdminOnly}
           onClose={() => setShowAdminPanel(false)}
         />
       )}
