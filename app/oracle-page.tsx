@@ -506,6 +506,7 @@ export default function OraclePage() {
 
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [debugEntries, setDebugEntries] = useState<DebugEntry[]>([]);
+  const [needsMovement, setNeedsMovement] = useState(true);
   const [pendingResult, setPendingResult] = useState<{
     primary: Hexagram;
     transformed: Hexagram | null;
@@ -653,65 +654,86 @@ export default function OraclePage() {
     }
   }
 
-  // ── Mouse entropy ───────────────────────────────────────────────────────
+  // ── Pause-driven casting: move mouse → pause → line cast, repeat 6× ────
   useEffect(() => {
     if (phase !== "oracle") return;
-    const handler = (e: MouseEvent) => {
-      lastMousePosRef.current = { x: e.clientX, y: e.clientY };
-      setMousePos({ x: e.clientX, y: e.clientY });
-      entropyRef.current.push((e.clientX ^ e.clientY ^ (Date.now() & 0xffff)) >>> 0);
-      if (entropyRef.current.length > 500) entropyRef.current = entropyRef.current.slice(-200);
-    };
-    window.addEventListener("mousemove", handler);
-    return () => window.removeEventListener("mousemove", handler);
-  }, [phase]);
 
-  // ── Line generation sequence ────────────────────────────────────────────
-  useEffect(() => {
-    if (phase !== "oracle") return;
-    if (generatingRef.current) return;
-
-    generatingRef.current = true;
     let lineCount = 0;
     const generatedLines: LineValue[] = [];
     let cancelled = false;
+    let awaitingMove = true; // user must move before first pause registers
+    let pauseTimer: ReturnType<typeof setTimeout> | null = null;
 
-    function scheduleNext() {
-      if (cancelled) return;
+    setNeedsMovement(true);
+
+    function castLine() {
+      if (cancelled || lineCount >= 6) return;
+
+      const pos = { ...lastMousePosRef.current };
+      const { value: val, rng } = generateLineValue();
+      generatedLines.push(val);
+      lineCount++;
+      setLines([...generatedLines]);
+      setDebugEntries(prev => [...prev, { line: lineCount, x: pos.x, y: pos.y, rng, value: val }]);
+
+      // After casting, user must move again before next line
+      awaitingMove = true;
+      setNeedsMovement(true);
+
       if (lineCount >= 6) {
+        generatingRef.current = false;
         const primaryNum = getHexagramNumber(generatedLines);
         const transformedNum = getTransformedHexagramNumber(generatedLines);
         const primary = getHexagram(primaryNum);
         const transformed = transformedNum ? getHexagram(transformedNum) : null;
         const castLines = [...generatedLines];
+
         if (castingDebugActiveRef.current) {
-          // Wait for admin to click Proceed in the Casting Debug panel
           setPendingResult({ primary, transformed, lines: castLines });
         } else {
-          // Auto-advance (normal flow when Casting Debug is off)
-          setResultLines(castLines);
-          setPrimaryHex(primary);
-          setTransformedHex(transformed);
-          setPhase("result");
+          // 0.5 s pause so the last line is visible before result appears
+          setTimeout(() => {
+            if (cancelled) return;
+            setResultLines(castLines);
+            setPrimaryHex(primary);
+            setTransformedHex(transformed);
+            setPhase("result");
+          }, 500);
         }
-        generatingRef.current = false;
-        return;
       }
-      const delay = lineCount === 0 ? 2200 : 1000 + Math.random() * 800;
-      setTimeout(() => {
-        if (cancelled) return;
-        const pos = { ...lastMousePosRef.current };
-        const { value: val, rng } = generateLineValue();
-        generatedLines.push(val);
-        lineCount++;
-        setLines([...generatedLines]);
-        setDebugEntries(prev => [...prev, { line: lineCount, x: pos.x, y: pos.y, rng, value: val }]);
-        scheduleNext();
-      }, delay);
     }
 
-    scheduleNext();
-    return () => { cancelled = true; generatingRef.current = false; };
+    const handler = (e: MouseEvent) => {
+      if (cancelled || lineCount >= 6) return;
+
+      lastMousePosRef.current = { x: e.clientX, y: e.clientY };
+      setMousePos({ x: e.clientX, y: e.clientY });
+      entropyRef.current.push((e.clientX ^ e.clientY ^ (Date.now() & 0xffff)) >>> 0);
+      if (entropyRef.current.length > 500) entropyRef.current = entropyRef.current.slice(-200);
+
+      // Clear any pending pause timer
+      if (pauseTimer) { clearTimeout(pauseTimer); pauseTimer = null; }
+
+      // First move after a cast — unlock pause detection
+      if (awaitingMove) {
+        awaitingMove = false;
+        setNeedsMovement(false);
+      }
+
+      // Schedule pause detection: if mouse stops for 400 ms, cast the line
+      pauseTimer = setTimeout(() => {
+        if (cancelled || awaitingMove || lineCount >= 6) return;
+        castLine();
+      }, 400);
+    };
+
+    window.addEventListener("mousemove", handler);
+    return () => {
+      cancelled = true;
+      if (pauseTimer) clearTimeout(pauseTimer);
+      window.removeEventListener("mousemove", handler);
+      generatingRef.current = false;
+    };
   }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function generateLineValue(): { value: LineValue; rng: number } {
@@ -747,6 +769,7 @@ export default function OraclePage() {
     setShowSavePrompt(false);
     setDebugEntries([]);
     setMousePos({ x: 0, y: 0 });
+    setNeedsMovement(true);
     setPendingResult(null);
     entropyRef.current = [];
     entropyIndexRef.current = 0;
@@ -765,6 +788,7 @@ export default function OraclePage() {
     setShowHistory(false);
     setDebugEntries([]);
     setMousePos({ x: 0, y: 0 });
+    setNeedsMovement(true);
     setPendingResult(null);
     entropyRef.current = [];
     entropyIndexRef.current = 0;
@@ -953,8 +977,8 @@ export default function OraclePage() {
                     below — or leave it blank to cast a private reading.
                   </li>
                   <li>
-                    Press <em>Ask the Oracle</em> and move your mouse in free,
-                    wandering circles to cast the lines.
+                    Press <em>Ask the Oracle</em>. Move your mouse freely,
+                    then pause — each pause casts one line. Repeat for all six.
                   </li>
                   <li>
                     Six lines will be revealed one by one, building the hexagram
@@ -1020,13 +1044,25 @@ export default function OraclePage() {
 
               {lines.length < 6 && (
                 <div className="border border-oracle-gold/30 rounded-2xl px-6 py-4 text-center max-w-sm bg-oracle-surface/40">
-                  <p className="text-oracle-gold text-sm font-semibold mb-1 animate-pulse">
-                    ✦ Move your mouse freely ✦
-                  </p>
-                  <p className="text-oracle-muted text-xs leading-relaxed">
-                    Let your hand wander without purpose. Your movement casts
-                    the hexagram lines through the wisdom of chance.
-                  </p>
+                  {needsMovement ? (
+                    <>
+                      <p className="text-oracle-gold text-sm font-semibold mb-1 animate-pulse">
+                        ✦ Move your mouse ✦
+                      </p>
+                      <p className="text-oracle-muted text-xs leading-relaxed">
+                        Move your mouse freely to gather energy for line {lines.length + 1}.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-oracle-gold text-sm font-semibold mb-1">
+                        ✦ Pause to cast ✦
+                      </p>
+                      <p className="text-oracle-muted text-xs leading-relaxed">
+                        Hold your mouse still to cast line {lines.length + 1}.
+                      </p>
+                    </>
+                  )}
                 </div>
               )}
 
