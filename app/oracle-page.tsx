@@ -149,7 +149,13 @@ function HexagramCard({
 
 // ─── Save Prompt Modal ───────────────────────────────────────────────────────
 
-function SavePromptModal({ onSave }: { onSave: (note: string) => void }) {
+function SavePromptModal({
+  onSave,
+  onCancel,
+}: {
+  onSave: (note: string) => void;
+  onCancel: () => void;
+}) {
   const [note, setNote] = useState("");
 
   return (
@@ -170,12 +176,20 @@ function SavePromptModal({ onSave }: { onSave: (note: string) => void }) {
           autoFocus
           className="w-full bg-oracle-surface border border-oracle-border focus:border-oracle-gold rounded-xl px-4 py-3 text-oracle-text placeholder-oracle-muted/60 focus:outline-none transition-colors resize-none text-sm mb-4"
         />
-        <button
-          onClick={() => onSave(note.trim())}
-          className="w-full bg-oracle-gold hover:bg-oracle-gold-light text-oracle-bg font-bold py-2.5 rounded-lg transition-colors text-sm"
-        >
-          {note.trim() ? "Save with Note" : "Save Reading"}
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => onSave(note.trim())}
+            className="flex-1 bg-oracle-gold hover:bg-oracle-gold-light text-oracle-bg font-bold py-2.5 rounded-lg transition-colors text-sm"
+          >
+            {note.trim() ? "Save with Note" : "Save Reading"}
+          </button>
+          <button
+            onClick={onCancel}
+            className="flex-1 border border-oracle-border hover:border-oracle-gold/40 text-oracle-muted hover:text-oracle-text py-2.5 rounded-lg transition-all text-sm"
+          >
+            Don't Save
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -1042,38 +1056,30 @@ export default function OraclePage() {
                 </p>
               </div>
 
-              {lines.length < 6 && (
-                <div className="border border-oracle-gold/30 rounded-2xl px-6 py-4 text-center max-w-sm bg-oracle-surface/40">
-                  {needsMovement ? (
-                    <>
-                      <p className="text-oracle-gold text-sm font-semibold mb-1 animate-pulse">
-                        ✦ Move your mouse ✦
-                      </p>
-                      <p className="text-oracle-muted text-xs leading-relaxed">
-                        Move your mouse freely to gather energy for line {lines.length + 1}.
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-oracle-gold text-sm font-semibold mb-1">
-                        ✦ Pause to cast ✦
-                      </p>
-                      <p className="text-oracle-muted text-xs leading-relaxed">
-                        Hold your mouse still to cast line {lines.length + 1}.
-                      </p>
-                    </>
-                  )}
-                </div>
-              )}
-
-              <div className="flex items-center gap-2 text-oracle-muted text-sm">
-                {lines.length < 6 ? (
+              {/* Fixed-width dialog — always visible, content switches with casting state */}
+              <div className="border border-oracle-gold/30 rounded-2xl px-6 py-4 text-center w-80 min-h-[76px] flex flex-col items-center justify-center bg-oracle-surface/40">
+                {lines.length >= 6 ? (
+                  <p className="text-oracle-gold text-sm font-semibold">
+                    Hexagram complete.
+                  </p>
+                ) : needsMovement ? (
                   <>
-                    <span className="animate-pulse">●</span>
-                    <span>Line {lines.length + 1} of 6 forming…</span>
+                    <p className="text-oracle-gold text-sm font-semibold mb-1 animate-pulse">
+                      ✦ Move your mouse ✦
+                    </p>
+                    <p className="text-oracle-muted text-xs leading-relaxed">
+                      Move your mouse freely to gather energy for line {lines.length + 1}.
+                    </p>
                   </>
                 ) : (
-                  <span className="text-oracle-gold">Hexagram complete</span>
+                  <>
+                    <p className="text-oracle-gold text-sm font-semibold mb-1">
+                      ✦ Pause to cast ✦
+                    </p>
+                    <p className="text-oracle-muted text-xs leading-relaxed">
+                      Hold your mouse still to cast line {lines.length + 1}.
+                    </p>
+                  </>
                 )}
               </div>
 
@@ -1231,7 +1237,10 @@ export default function OraclePage() {
       )}
 
       {showSavePrompt && (
-        <SavePromptModal onSave={handleSavePromptSubmit} />
+        <SavePromptModal
+          onSave={handleSavePromptSubmit}
+          onCancel={() => setShowSavePrompt(false)}
+        />
       )}
 
       {showAdminPanel && user && appConfig && (
