@@ -209,6 +209,7 @@ function AuthModal({
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [loginFailed, setLoginFailed] = useState(false);
+  const [emailNotConfirmed, setEmailNotConfirmed] = useState(false);
   const [forgotMode, setForgotMode] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const supabase = createClient();
@@ -234,10 +235,8 @@ function AuthModal({
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Authentication failed";
       if (/email.*not.*confirmed|not.*confirmed/i.test(msg)) {
-        setError(
-          "Your email address has not been confirmed yet. " +
-            "Please check your inbox for the confirmation link and click it before signing in."
-        );
+        setError("Sign-in failed.");
+        setEmailNotConfirmed(true);
       } else {
         setError(msg);
         setLoginFailed(true);
@@ -382,7 +381,12 @@ function AuthModal({
           </button>
         </form>
 
-        {loginFailed && (
+        {emailNotConfirmed && (
+          <p className="text-oracle-gold/80 text-sm bg-oracle-gold/10 border border-oracle-gold/30 rounded-lg px-3 py-2 mt-4 text-center leading-relaxed">
+            Email recognized — please check your inbox and click the confirmation link to activate your account.
+          </p>
+        )}
+        {loginFailed && !emailNotConfirmed && (
           <p className="text-center text-oracle-muted text-sm mt-4">
             <button
               onClick={() => setForgotMode(true)}
