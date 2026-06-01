@@ -1023,7 +1023,7 @@ export default function OraclePage() {
                 {/* Debug panel */}
                 <div className="bg-oracle-card border border-oracle-border rounded-2xl p-4 w-52 font-mono text-xs flex flex-col gap-3">
                   <p className="text-oracle-gold uppercase tracking-widest text-xs font-semibold">
-                    Debug
+                    Casting Debug
                   </p>
                   <div className="pb-3 border-b border-oracle-border/60">
                     <span className="text-oracle-muted">mouse </span>
