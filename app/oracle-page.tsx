@@ -187,12 +187,14 @@ function AuthModal({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
   const supabase = createClient();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setNotice("");
 
     for (let i = 0; i < password.length; i++) {
       if (password.charCodeAt(i) > 255) {
@@ -210,7 +212,13 @@ function AuthModal({
       if (mode === "signup") {
         const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        if (data.user) onAuth(data.user);
+        if (data.user && data.session) {
+          // Email confirmation not required — signed in immediately
+          onAuth(data.user);
+        } else if (data.user) {
+          // Email confirmation required — profile will be created after they confirm
+          setNotice("Account created! Check your email to confirm it, then sign in here.");
+        }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -270,14 +278,21 @@ function AuthModal({
               {error}
             </p>
           )}
+          {notice && (
+            <p className="text-green-400 text-sm bg-green-900/20 border border-green-800/30 rounded-lg px-3 py-2">
+              {notice}
+            </p>
+          )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-oracle-gold hover:bg-oracle-gold-light disabled:opacity-50 text-oracle-bg font-bold py-2.5 rounded-lg transition-colors text-sm"
-          >
-            {loading ? "Please wait…" : mode === "login" ? "Sign In" : "Create Account"}
-          </button>
+          {!notice && (
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-oracle-gold hover:bg-oracle-gold-light disabled:opacity-50 text-oracle-bg font-bold py-2.5 rounded-lg transition-colors text-sm"
+            >
+              {loading ? "Please wait…" : mode === "login" ? "Sign In" : "Create Account"}
+            </button>
+          )}
         </form>
 
         {!disableSignup && (
@@ -562,11 +577,21 @@ export default function OraclePage() {
       }
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
       const u = session?.user ?? null;
       setUser(u);
-      if (u) loadHistory(u.id);
-      else setHistory([]);
+      if (u) {
+        loadHistory(u.id);
+        if (event === "SIGNED_IN") {
+          // Runs on normal sign-in AND after email confirmation redirect —
+          // ensures the profile row exists regardless of signup path.
+          await upsertProfile(u);
+          const cfg = await loadAppConfig();
+          await checkAutoAdmin(u.id, cfg);
+        }
+      } else {
+        setHistory([]);
+      }
     });
 
     return () => listener.subscription.unsubscribe();
@@ -710,13 +735,9 @@ export default function OraclePage() {
     setPhase("intro");
   }
 
-  async function handlePostAuth(u: User) {
-    setUser(u);
+  function handlePostAuth(_u: User) {
+    // onAuthStateChange SIGNED_IN handles profile upsert, config load, and admin check
     setShowAuth(false);
-    await upsertProfile(u);
-    const cfg = await loadAppConfig();
-    await checkAutoAdmin(u.id, cfg);
-    loadHistory(u.id);
   }
 
   function handleSavePromptSubmit(note: string) {
