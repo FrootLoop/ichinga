@@ -761,24 +761,32 @@ function AdminPanel({
                     <p className="text-oracle-muted text-xs mt-0.5 uppercase tracking-wider">{t.id}</p>
                   </div>
                   <div className="flex items-center gap-3 flex-shrink-0">
-                    <span className="text-oracle-muted text-xs">
-                      {t.admin_only ? "Admin only" : "All users"}
-                    </span>
-                    <button
-                      role="switch"
-                      aria-checked={t.admin_only}
-                      onClick={() => onToggleTranslationAdminOnly(t.id, t.admin_only)}
-                      className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
-                        t.admin_only ? "bg-oracle-gold" : "bg-oracle-border"
-                      }`}
-                      title={t.admin_only ? "Click to make available to all users" : "Click to restrict to admin only"}
-                    >
-                      <span
-                        className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${
-                          t.admin_only ? "translate-x-5" : "translate-x-0"
-                        }`}
-                      />
-                    </button>
+                    {t.id === "en" ? (
+                      <span className="text-oracle-gold text-xs font-semibold uppercase tracking-wider">
+                        Default
+                      </span>
+                    ) : (
+                      <>
+                        <span className="text-oracle-muted text-xs">
+                          {t.admin_only ? "Admin only" : "All users"}
+                        </span>
+                        <button
+                          role="switch"
+                          aria-checked={t.admin_only}
+                          onClick={() => onToggleTranslationAdminOnly(t.id, t.admin_only)}
+                          className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
+                            t.admin_only ? "bg-oracle-gold" : "bg-oracle-border"
+                          }`}
+                          title={t.admin_only ? "Click to make available to all users" : "Click to restrict to admin only"}
+                        >
+                          <span
+                            className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${
+                              t.admin_only ? "translate-x-5" : "translate-x-0"
+                            }`}
+                          />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
