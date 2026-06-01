@@ -177,24 +177,19 @@ function SavePromptModal({ onSave }: { onSave: (note: string) => void }) {
 function AuthModal({
   onClose,
   onAuth,
-  disableSignup,
 }: {
   onClose: () => void;
   onAuth: (user: User) => void;
-  disableSignup: boolean;
 }) {
-  const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
   const supabase = createClient();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    setNotice("");
 
     for (let i = 0; i < password.length; i++) {
       if (password.charCodeAt(i) > 255) {
@@ -209,23 +204,19 @@ function AuthModal({
 
     setLoading(true);
     try {
-      if (mode === "signup") {
-        const { data, error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-        if (data.user && data.session) {
-          // Email confirmation not required — signed in immediately
-          onAuth(data.user);
-        } else if (data.user) {
-          // Email confirmation required — profile will be created after they confirm
-          setNotice("Account created! Check your email to confirm it, then sign in here.");
-        }
-      } else {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        if (data.user) onAuth(data.user);
-      }
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      if (data.user) onAuth(data.user);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Authentication failed");
+      const msg = err instanceof Error ? err.message : "Authentication failed";
+      if (/email.*not.*confirmed|not.*confirmed/i.test(msg)) {
+        setError(
+          "Your email address has not been confirmed yet. " +
+            "Please check your inbox for the confirmation link and click it before signing in."
+        );
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -237,12 +228,8 @@ function AuthModal({
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="bg-oracle-card border border-oracle-border rounded-2xl p-8 w-full max-w-sm shadow-2xl">
-        <h2 className="text-2xl font-serif text-oracle-gold mb-1">
-          {mode === "login" ? "Sign In" : "Create Account"}
-        </h2>
-        <p className="text-oracle-muted text-sm mb-6">
-          {mode === "login" ? "Access your reading history" : "Save your readings for future reflection"}
-        </p>
+        <h2 className="text-2xl font-serif text-oracle-gold mb-1">Sign In</h2>
+        <p className="text-oracle-muted text-sm mb-6">Access your reading history</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -278,34 +265,15 @@ function AuthModal({
               {error}
             </p>
           )}
-          {notice && (
-            <p className="text-green-400 text-sm bg-green-900/20 border border-green-800/30 rounded-lg px-3 py-2">
-              {notice}
-            </p>
-          )}
 
-          {!notice && (
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-oracle-gold hover:bg-oracle-gold-light disabled:opacity-50 text-oracle-bg font-bold py-2.5 rounded-lg transition-colors text-sm"
-            >
-              {loading ? "Please wait…" : mode === "login" ? "Sign In" : "Create Account"}
-            </button>
-          )}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-oracle-gold hover:bg-oracle-gold-light disabled:opacity-50 text-oracle-bg font-bold py-2.5 rounded-lg transition-colors text-sm"
+          >
+            {loading ? "Please wait…" : "Sign In"}
+          </button>
         </form>
-
-        {!disableSignup && (
-          <p className="text-center text-oracle-muted text-sm mt-4">
-            {mode === "login" ? "No account? " : "Already have an account? "}
-            <button
-              onClick={() => setMode(mode === "login" ? "signup" : "login")}
-              className="text-oracle-gold hover:text-oracle-gold-light underline"
-            >
-              {mode === "login" ? "Sign up" : "Sign in"}
-            </button>
-          </p>
-        )}
       </div>
     </div>
   );
@@ -1092,7 +1060,6 @@ export default function OraclePage() {
         <AuthModal
           onClose={() => setShowAuth(false)}
           onAuth={handlePostAuth}
-          disableSignup={appConfig?.disable_signup ?? false}
         />
       )}
 
