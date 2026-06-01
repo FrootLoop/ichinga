@@ -208,12 +208,14 @@ function AuthModal({
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loginFailed, setLoginFailed] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
   const supabase = createClient();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-
     for (let i = 0; i < password.length; i++) {
       if (password.charCodeAt(i) > 255) {
         setError(
@@ -224,7 +226,6 @@ function AuthModal({
         return;
       }
     }
-
     setLoading(true);
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -239,12 +240,95 @@ function AuthModal({
         );
       } else {
         setError(msg);
+        setLoginFailed(true);
       }
     } finally {
       setLoading(false);
     }
   }
 
+  async function handleForgotPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      // Supabase silently skips unconfirmed / unknown emails — only confirmed accounts receive a link
+      await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin,
+      });
+    } finally {
+      setLoading(false);
+      setResetSent(true);
+    }
+  }
+
+  const backdrop = (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    />
+  );
+
+  // ── Forgot-password view ────────────────────────────────────────────────
+  if (forgotMode) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+        onClick={(e) => e.target === e.currentTarget && onClose()}>
+        <div className="bg-oracle-card border border-oracle-border rounded-2xl p-8 w-full max-w-sm shadow-2xl">
+          <h2 className="text-2xl font-serif text-oracle-gold mb-1">Reset Password</h2>
+          {resetSent ? (
+            <>
+              <p className="text-oracle-muted text-sm leading-relaxed mt-2">
+                If this email belongs to a confirmed account, a reset link has been sent. Check your inbox.
+              </p>
+              <button
+                onClick={() => { setForgotMode(false); setResetSent(false); }}
+                className="w-full mt-6 border border-oracle-border hover:border-oracle-gold/40 text-oracle-muted hover:text-oracle-text py-2.5 rounded-lg transition-all text-sm"
+              >
+                ← Back to Sign In
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-oracle-muted text-sm mb-6">
+                Enter your email and we'll send a reset link.
+              </p>
+              <form onSubmit={handleForgotPassword} className="space-y-4">
+                <div>
+                  <label className="block text-xs text-oracle-muted mb-1 uppercase tracking-wider">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoFocus
+                    className="w-full bg-oracle-surface border border-oracle-border rounded-lg px-4 py-2.5 text-oracle-text focus:outline-none focus:border-oracle-gold text-sm"
+                    placeholder="your@email.com"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-oracle-gold hover:bg-oracle-gold-light disabled:opacity-50 text-oracle-bg font-bold py-2.5 rounded-lg transition-colors text-sm"
+                >
+                  {loading ? "Sending…" : "Send Reset Link"}
+                </button>
+              </form>
+              <button
+                onClick={() => setForgotMode(false)}
+                className="w-full mt-3 text-oracle-muted hover:text-oracle-text text-sm transition-colors"
+              >
+                ← Back to Sign In
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Normal sign-in view ─────────────────────────────────────────────────
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
@@ -297,6 +381,111 @@ function AuthModal({
             {loading ? "Please wait…" : "Sign In"}
           </button>
         </form>
+
+        {loginFailed && (
+          <p className="text-center text-oracle-muted text-sm mt-4">
+            <button
+              onClick={() => setForgotMode(true)}
+              className="text-oracle-gold hover:text-oracle-gold-light underline"
+            >
+              Forgot Password?
+            </button>
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Password Reset Modal ────────────────────────────────────────────────────
+
+function PasswordResetModal({ onDone }: { onDone: () => void }) {
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const supabase = createClient();
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    if (password !== confirm) { setError("Passwords do not match."); return; }
+    for (let i = 0; i < password.length; i++) {
+      if (password.charCodeAt(i) > 255) {
+        setError("Your password contains an unsupported character. Please use only standard letters, numbers, and symbols.");
+        return;
+      }
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
+      setSuccess(true);
+      setTimeout(onDone, 2000);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to update password.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+      <div className="bg-oracle-card border border-oracle-border rounded-2xl p-8 w-full max-w-sm shadow-2xl">
+        <h2 className="text-2xl font-serif text-oracle-gold mb-1">Set New Password</h2>
+        {success ? (
+          <p className="text-green-400 text-sm leading-relaxed mt-2">
+            Password updated. Signing you in…
+          </p>
+        ) : (
+          <>
+            <p className="text-oracle-muted text-sm mb-6">Choose a new password for your account.</p>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs text-oracle-muted mb-1 uppercase tracking-wider">
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  autoFocus
+                  className="w-full bg-oracle-surface border border-oracle-border rounded-lg px-4 py-2.5 text-oracle-text focus:outline-none focus:border-oracle-gold text-sm"
+                  placeholder="••••••••"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-oracle-muted mb-1 uppercase tracking-wider">
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                  required
+                  minLength={6}
+                  className="w-full bg-oracle-surface border border-oracle-border rounded-lg px-4 py-2.5 text-oracle-text focus:outline-none focus:border-oracle-gold text-sm"
+                  placeholder="••••••••"
+                />
+              </div>
+              {error && (
+                <p className="text-red-400 text-sm bg-red-900/20 border border-red-800/30 rounded-lg px-3 py-2">
+                  {error}
+                </p>
+              )}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-oracle-gold hover:bg-oracle-gold-light disabled:opacity-50 text-oracle-bg font-bold py-2.5 rounded-lg transition-colors text-sm"
+              >
+                {loading ? "Updating…" : "Update Password"}
+              </button>
+            </form>
+          </>
+        )}
       </div>
     </div>
   );
@@ -513,6 +702,7 @@ export default function OraclePage() {
   const [savedThisReading, setSavedThisReading] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
 
   const [primaryHex, setPrimaryHex] = useState<Hexagram | null>(null);
   const [transformedHex, setTransformedHex] = useState<Hexagram | null>(null);
@@ -611,6 +801,10 @@ export default function OraclePage() {
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setShowPasswordReset(true);
+        return;
+      }
       const u = session?.user ?? null;
       setUser(u);
       if (u) {
@@ -1228,6 +1422,10 @@ export default function OraclePage() {
       <footer className="text-center py-4 text-oracle-muted/40 text-xs border-t border-oracle-border/20">
         I Ching Oracle · The Book of Changes · Est. ~1000 BCE
       </footer>
+
+      {showPasswordReset && (
+        <PasswordResetModal onDone={() => setShowPasswordReset(false)} />
+      )}
 
       {showAuth && (
         <AuthModal
