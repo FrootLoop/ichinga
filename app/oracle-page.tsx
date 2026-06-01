@@ -22,6 +22,14 @@ interface Reading {
   created_at: string;
 }
 
+interface DebugEntry {
+  line: number;
+  x: number;
+  y: number;
+  rng: number;
+  value: LineValue;
+}
+
 interface AppConfig {
   admin_user_id: string | null;
   disable_signup: boolean;
@@ -468,9 +476,13 @@ export default function OraclePage() {
   const [transformedHex, setTransformedHex] = useState<Hexagram | null>(null);
   const [resultLines, setResultLines] = useState<LineValue[]>([]);
 
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [debugEntries, setDebugEntries] = useState<DebugEntry[]>([]);
+
   const entropyRef = useRef<number[]>([]);
   const entropyIndexRef = useRef(0);
   const generatingRef = useRef(false);
+  const lastMousePosRef = useRef({ x: 0, y: 0 });
 
   const questionRef = useRef(question);
   const resultLinesRef = useRef(resultLines);
@@ -607,6 +619,8 @@ export default function OraclePage() {
   useEffect(() => {
     if (phase !== "oracle") return;
     const handler = (e: MouseEvent) => {
+      lastMousePosRef.current = { x: e.clientX, y: e.clientY };
+      setMousePos({ x: e.clientX, y: e.clientY });
       entropyRef.current.push((e.clientX ^ e.clientY ^ (Date.now() & 0xffff)) >>> 0);
       if (entropyRef.current.length > 500) entropyRef.current = entropyRef.current.slice(-200);
     };
@@ -639,10 +653,12 @@ export default function OraclePage() {
       const delay = lineCount === 0 ? 2200 : 1000 + Math.random() * 800;
       setTimeout(() => {
         if (cancelled) return;
-        const val = generateLineValue();
+        const pos = { ...lastMousePosRef.current };
+        const { value: val, rng } = generateLineValue();
         generatedLines.push(val);
         lineCount++;
         setLines([...generatedLines]);
+        setDebugEntries(prev => [...prev, { line: lineCount, x: pos.x, y: pos.y, rng, value: val }]);
         scheduleNext();
       }, delay);
     }
@@ -651,7 +667,7 @@ export default function OraclePage() {
     return () => { cancelled = true; generatingRef.current = false; };
   }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function generateLineValue(): LineValue {
+  function generateLineValue(): { value: LineValue; rng: number } {
     const buf = entropyRef.current;
     let a: number, b: number, c: number;
     if (buf.length >= 3) {
@@ -669,7 +685,7 @@ export default function OraclePage() {
     const coin2 = (b >> ((entropyIndexRef.current + 1) % 8)) & 1;
     const coin3 = (c >> ((entropyIndexRef.current + 2) % 8)) & 1;
     const sum = (coin1 ? 3 : 2) + (coin2 ? 3 : 2) + (coin3 ? 3 : 2);
-    return sum as LineValue;
+    return { value: sum as LineValue, rng: a };
   }
 
   // ── Actions ─────────────────────────────────────────────────────────────
@@ -682,6 +698,8 @@ export default function OraclePage() {
     setResultLines([]);
     setSavedThisReading(false);
     setShowSavePrompt(false);
+    setDebugEntries([]);
+    setMousePos({ x: 0, y: 0 });
     entropyRef.current = [];
     entropyIndexRef.current = 0;
     generatingRef.current = false;
@@ -697,6 +715,8 @@ export default function OraclePage() {
     setSavedThisReading(false);
     setShowSavePrompt(false);
     setShowHistory(false);
+    setDebugEntries([]);
+    setMousePos({ x: 0, y: 0 });
     entropyRef.current = [];
     entropyIndexRef.current = 0;
     generatingRef.current = false;
@@ -954,31 +974,67 @@ export default function OraclePage() {
                 )}
               </div>
 
-              <div className="bg-white rounded-2xl p-8 shadow-2xl w-80">
-                <div className="space-y-1">
-                  {Array.from({ length: 6 }).map((_, displayIdx) => {
-                    const lineIdx = 5 - displayIdx;
-                    const lineVal = lines[lineIdx];
-                    if (lineVal === undefined) {
+              <div className="flex gap-5 items-start">
+                {/* Hexagram card */}
+                <div className="bg-white rounded-2xl p-8 shadow-2xl w-80">
+                  <div className="space-y-1">
+                    {Array.from({ length: 6 }).map((_, displayIdx) => {
+                      const lineIdx = 5 - displayIdx;
+                      const lineVal = lines[lineIdx];
+                      if (lineVal === undefined) {
+                        return (
+                          <div key={displayIdx} className="flex justify-center items-center my-2 h-5">
+                            <div
+                              className="border-b-2 border-dashed border-gray-200"
+                              style={{ width: "56%" }}
+                            />
+                          </div>
+                        );
+                      }
                       return (
-                        <div key={displayIdx} className="flex justify-center items-center my-2 h-5">
-                          <div
-                            className="border-b-2 border-dashed border-gray-200"
-                            style={{ width: "56%" }}
-                          />
+                        <div key={displayIdx} className="slide-up">
+                          <HexagramLine value={lineVal} index={displayIdx} animate />
                         </div>
                       );
-                    }
-                    return (
-                      <div key={displayIdx} className="slide-up">
-                        <HexagramLine value={lineVal} index={displayIdx} animate />
-                      </div>
-                    );
-                  })}
+                    })}
+                  </div>
+                  <p className="text-center text-gray-400 text-xs mt-4">
+                    {lines.length} / 6
+                  </p>
                 </div>
-                <p className="text-center text-gray-400 text-xs mt-4">
-                  {lines.length} / 6
-                </p>
+
+                {/* Debug panel */}
+                <div className="bg-oracle-card border border-oracle-border rounded-2xl p-4 w-52 font-mono text-xs self-stretch">
+                  <p className="text-oracle-gold uppercase tracking-widest text-xs font-semibold mb-3">
+                    Debug
+                  </p>
+                  <div className="mb-3 pb-3 border-b border-oracle-border/60">
+                    <span className="text-oracle-muted">mouse </span>
+                    <span className="text-oracle-text">
+                      {mousePos.x}, {mousePos.y}
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {debugEntries.map((e) => {
+                      const isChanging = e.value === 6 || e.value === 9;
+                      return (
+                        <div key={e.line}>
+                          <div className="text-oracle-muted">
+                            <span className="text-oracle-gold">L{e.line}</span>
+                            {" "}({e.x}, {e.y})
+                          </div>
+                          <div className="text-oracle-muted pl-3">
+                            rng <span className="text-oracle-text">{e.rng}</span>
+                            {" → "}
+                            <span className={isChanging ? "text-orange-400" : "text-oracle-text"}>
+                              {e.value}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
           )}
