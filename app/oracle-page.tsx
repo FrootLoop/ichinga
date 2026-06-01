@@ -8,6 +8,7 @@ import {
   getHexagram,
   type Hexagram,
 } from "@/lib/iching-data";
+import { getHexagramFr } from "@/lib/iching-data-fr";
 import type { User } from "@supabase/supabase-js";
 
 type Phase = "intro" | "oracle" | "result";
@@ -40,6 +41,18 @@ interface Profile {
   id: string;
   email: string;
   created_at: string;
+}
+
+interface Translation {
+  id: string;
+  name: string;
+  admin_only: boolean;
+  sort_order: number;
+}
+
+function getHexagramForTranslation(number: number, translationId: string): Hexagram {
+  if (translationId === "fr") return getHexagramFr(number);
+  return getHexagram(number);
 }
 
 // ─── Hexagram Line Visual ────────────────────────────────────────────────────
@@ -143,6 +156,50 @@ function HexagramCard({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Translation Spinner ─────────────────────────────────────────────────────
+
+function TranslationSpinner({
+  translations,
+  currentId,
+  onChange,
+}: {
+  translations: Translation[];
+  currentId: string;
+  onChange: (id: string) => void;
+}) {
+  if (translations.length <= 1) return null;
+  const idx = translations.findIndex((t) => t.id === currentId);
+  const safeIdx = idx === -1 ? 0 : idx;
+  const current = translations[safeIdx];
+
+  function go(dir: -1 | 1) {
+    const next = (safeIdx + dir + translations.length) % translations.length;
+    onChange(translations[next].id);
+  }
+
+  return (
+    <div className="flex items-center justify-center gap-3">
+      <button
+        onClick={() => go(-1)}
+        className="w-7 h-7 flex items-center justify-center text-oracle-muted hover:text-oracle-gold border border-oracle-border hover:border-oracle-gold/40 rounded-lg transition-all text-base leading-none"
+        aria-label="Previous translation"
+      >
+        ‹
+      </button>
+      <span className="text-oracle-muted text-xs uppercase tracking-widest min-w-20 text-center">
+        {current?.name ?? "English"}
+      </span>
+      <button
+        onClick={() => go(1)}
+        className="w-7 h-7 flex items-center justify-center text-oracle-muted hover:text-oracle-gold border border-oracle-border hover:border-oracle-gold/40 rounded-lg transition-all text-base leading-none"
+        aria-label="Next translation"
+      >
+        ›
+      </button>
     </div>
   );
 }
@@ -259,13 +316,6 @@ function AuthModal({
       setResetSent(true);
     }
   }
-
-  const backdrop = (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    />
-  );
 
   // ── Forgot-password view ────────────────────────────────────────────────
   if (forgotMode) {
@@ -708,16 +758,21 @@ export default function OraclePage() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [showPasswordReset, setShowPasswordReset] = useState(false);
 
-  const [primaryHex, setPrimaryHex] = useState<Hexagram | null>(null);
-  const [transformedHex, setTransformedHex] = useState<Hexagram | null>(null);
+  // Hexagram numbers stored in state; full Hexagram objects derived in render
+  const [primaryHexNum, setPrimaryHexNum] = useState<number | null>(null);
+  const [transformedHexNum, setTransformedHexNum] = useState<number | null>(null);
   const [resultLines, setResultLines] = useState<LineValue[]>([]);
+
+  // Translation state
+  const [allTranslations, setAllTranslations] = useState<Translation[]>([]);
+  const [currentTranslationId, setCurrentTranslationId] = useState("en");
 
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [debugEntries, setDebugEntries] = useState<DebugEntry[]>([]);
   const [needsMovement, setNeedsMovement] = useState(true);
   const [pendingResult, setPendingResult] = useState<{
-    primary: Hexagram;
-    transformed: Hexagram | null;
+    primaryNum: number;
+    transformedNum: number | null;
     lines: LineValue[];
   } | null>(null);
 
@@ -729,14 +784,14 @@ export default function OraclePage() {
 
   const questionRef = useRef(question);
   const resultLinesRef = useRef(resultLines);
-  const primaryHexRef = useRef(primaryHex);
-  const transformedHexRef = useRef(transformedHex);
+  const primaryHexNumRef = useRef(primaryHexNum);
+  const transformedHexNumRef = useRef(transformedHexNum);
   const savedRef = useRef(savedThisReading);
 
   useEffect(() => { questionRef.current = question; }, [question]);
   useEffect(() => { resultLinesRef.current = resultLines; }, [resultLines]);
-  useEffect(() => { primaryHexRef.current = primaryHex; }, [primaryHex]);
-  useEffect(() => { transformedHexRef.current = transformedHex; }, [transformedHex]);
+  useEffect(() => { primaryHexNumRef.current = primaryHexNum; }, [primaryHexNum]);
+  useEffect(() => { transformedHexNumRef.current = transformedHexNum; }, [transformedHexNum]);
   useEffect(() => { savedRef.current = savedThisReading; }, [savedThisReading]);
 
   const supabase = createClient();
@@ -746,6 +801,27 @@ export default function OraclePage() {
     user !== null &&
     appConfig !== null &&
     (appConfig.admin_user_id === null || appConfig.admin_user_id === user.id);
+
+  // Derived hexagram objects — reactive to translation changes
+  const primaryHex = primaryHexNum
+    ? getHexagramForTranslation(primaryHexNum, currentTranslationId)
+    : null;
+  const transformedHex = transformedHexNum
+    ? getHexagramForTranslation(transformedHexNum, currentTranslationId)
+    : null;
+
+  // Filter translations by admin status; all-users translations are always shown
+  const visibleTranslations = allTranslations.filter((t) => !t.admin_only || isAdmin);
+
+  // If current translation is no longer visible after an admin status change, fall back to English
+  useEffect(() => {
+    if (
+      visibleTranslations.length > 0 &&
+      !visibleTranslations.find((t) => t.id === currentTranslationId)
+    ) {
+      setCurrentTranslationId("en");
+    }
+  }, [visibleTranslations, currentTranslationId]);
 
   useEffect(() => {
     castingDebugActiveRef.current = isAdmin && (appConfig?.show_casting_debug ?? false);
@@ -763,6 +839,14 @@ export default function OraclePage() {
     return null;
   }
 
+  async function loadTranslations() {
+    const { data } = await supabase
+      .from("translations")
+      .select("*")
+      .order("sort_order", { ascending: true });
+    if (data) setAllTranslations(data as Translation[]);
+  }
+
   async function loadProfiles() {
     const { data } = await supabase
       .from("profiles")
@@ -776,6 +860,17 @@ export default function OraclePage() {
     await supabase
       .from("profiles")
       .upsert({ id: u.id, email: u.email }, { onConflict: "id", ignoreDuplicates: true });
+  }
+
+  async function loadTranslationPreference(userId: string) {
+    const { data } = await supabase
+      .from("profiles")
+      .select("translation_id")
+      .eq("id", userId)
+      .single();
+    if (data?.translation_id) {
+      setCurrentTranslationId(data.translation_id);
+    }
   }
 
   // If no admin is set and there's exactly one profile, auto-promote that user.
@@ -793,12 +888,14 @@ export default function OraclePage() {
   // ── Auth bootstrap ──────────────────────────────────────────────────────
   useEffect(() => {
     loadAppConfig();
+    loadTranslations();
 
     supabase.auth.getUser().then(async ({ data }) => {
       if (data.user) {
         setUser(data.user);
         loadHistory(data.user.id);
         await upsertProfile(data.user);
+        await loadTranslationPreference(data.user.id);
         const cfg = await loadAppConfig();
         await checkAutoAdmin(data.user.id, cfg);
       }
@@ -817,11 +914,13 @@ export default function OraclePage() {
           // Runs on normal sign-in AND after email confirmation redirect —
           // ensures the profile row exists regardless of signup path.
           await upsertProfile(u);
+          await loadTranslationPreference(u.id);
           const cfg = await loadAppConfig();
           await checkAutoAdmin(u.id, cfg);
         }
       } else {
         setHistory([]);
+        setCurrentTranslationId("en");
       }
     });
 
@@ -838,6 +937,15 @@ export default function OraclePage() {
     if (data) setHistory(data as Reading[]);
   }
 
+  // ── Translation change ───────────────────────────────────────────────────
+
+  async function handleTranslationChange(id: string) {
+    setCurrentTranslationId(id);
+    if (user) {
+      await supabase.from("profiles").update({ translation_id: id }).eq("id", user.id);
+    }
+  }
+
   // ── Save helpers ─────────────────────────────────────────────────────────
 
   function performSave(u: User, questionText: string) {
@@ -849,8 +957,8 @@ export default function OraclePage() {
         user_id: u.id,
         question: questionText,
         lines: resultLinesRef.current,
-        primary_hexagram: primaryHexRef.current!.number,
-        transformed_hexagram: transformedHexRef.current?.number ?? null,
+        primary_hexagram: primaryHexNumRef.current!,
+        transformed_hexagram: transformedHexNumRef.current ?? null,
       })
       .then(({ error }) => {
         if (!error) loadHistory(u.id);
@@ -896,19 +1004,17 @@ export default function OraclePage() {
         generatingRef.current = false;
         const primaryNum = getHexagramNumber(generatedLines);
         const transformedNum = getTransformedHexagramNumber(generatedLines);
-        const primary = getHexagram(primaryNum);
-        const transformed = transformedNum ? getHexagram(transformedNum) : null;
         const castLines = [...generatedLines];
 
         if (castingDebugActiveRef.current) {
-          setPendingResult({ primary, transformed, lines: castLines });
+          setPendingResult({ primaryNum, transformedNum, lines: castLines });
         } else {
           // 0.7 s pause so the last line is visible before result appears
           setTimeout(() => {
             if (cancelled) return;
             setResultLines(castLines);
-            setPrimaryHex(primary);
-            setTransformedHex(transformed);
+            setPrimaryHexNum(primaryNum);
+            setTransformedHexNum(transformedNum);
             setPhase("result");
           }, 700);
         }
@@ -974,8 +1080,8 @@ export default function OraclePage() {
   function handleAskQuestion(e: React.FormEvent) {
     e.preventDefault();
     setLines([]);
-    setPrimaryHex(null);
-    setTransformedHex(null);
+    setPrimaryHexNum(null);
+    setTransformedHexNum(null);
     setResultLines([]);
     setSavedThisReading(false);
     setShowSavePrompt(false);
@@ -992,8 +1098,8 @@ export default function OraclePage() {
   function handleAskAgain() {
     setQuestion("");
     setLines([]);
-    setPrimaryHex(null);
-    setTransformedHex(null);
+    setPrimaryHexNum(null);
+    setTransformedHexNum(null);
     setResultLines([]);
     setSavedThisReading(false);
     setShowSavePrompt(false);
@@ -1011,8 +1117,8 @@ export default function OraclePage() {
   function handleProceed() {
     if (!pendingResult) return;
     setResultLines(pendingResult.lines);
-    setPrimaryHex(pendingResult.primary);
-    setTransformedHex(pendingResult.transformed);
+    setPrimaryHexNum(pendingResult.primaryNum);
+    setTransformedHexNum(pendingResult.transformedNum);
     setPendingResult(null);
     setPhase("result");
   }
@@ -1038,8 +1144,8 @@ export default function OraclePage() {
     setResultLines(lv);
     setLines(lv);
     setQuestion(r.question);
-    setPrimaryHex(getHexagram(r.primary_hexagram));
-    setTransformedHex(r.transformed_hexagram ? getHexagram(r.transformed_hexagram) : null);
+    setPrimaryHexNum(r.primary_hexagram);
+    setTransformedHexNum(r.transformed_hexagram ?? null);
     setSavedThisReading(true);
     setPhase("result");
     setShowHistory(false);
@@ -1368,6 +1474,17 @@ export default function OraclePage() {
                   {questionDisplay}
                 </p>
               </div>
+
+              {/* Translation spinner — shown only when multiple translations are available */}
+              {visibleTranslations.length > 1 && (
+                <div className="flex justify-center">
+                  <TranslationSpinner
+                    translations={visibleTranslations}
+                    currentId={currentTranslationId}
+                    onChange={handleTranslationChange}
+                  />
+                </div>
+              )}
 
               <div
                 className={`flex gap-6 ${
