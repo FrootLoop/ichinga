@@ -705,14 +705,14 @@ export default function OraclePage() {
         if (castingDebugActiveRef.current) {
           setPendingResult({ primary, transformed, lines: castLines });
         } else {
-          // 0.5 s pause so the last line is visible before result appears
+          // 0.7 s pause so the last line is visible before result appears
           setTimeout(() => {
             if (cancelled) return;
             setResultLines(castLines);
             setPrimaryHex(primary);
             setTransformedHex(transformed);
             setPhase("result");
-          }, 500);
+          }, 700);
         }
       }
     }
@@ -1056,11 +1056,11 @@ export default function OraclePage() {
                 </p>
               </div>
 
-              {/* Fixed-width dialog — always visible, content switches with casting state */}
-              <div className="border border-oracle-gold/30 rounded-2xl px-6 py-4 text-center w-80 min-h-[76px] flex flex-col items-center justify-center bg-oracle-surface/40">
+              {/* Casting Status panel — fixed width, content switches with casting state */}
+              <div className="border border-oracle-gold/30 rounded-2xl px-10 py-4 text-center w-80 min-h-[76px] flex flex-col items-center justify-center bg-oracle-surface/40">
                 {lines.length >= 6 ? (
                   <p className="text-oracle-gold text-sm font-semibold">
-                    Hexagram complete.
+                    ✦ Hexagram complete. ✦
                   </p>
                 ) : needsMovement ? (
                   <>
