@@ -33,6 +33,7 @@ interface DebugEntry {
 interface AppConfig {
   admin_user_id: string | null;
   disable_signup: boolean;
+  show_casting_debug: boolean;
 }
 
 interface Profile {
@@ -353,6 +354,7 @@ function AdminPanel({
   currentUserId,
   onSetAdmin,
   onToggleDisableSignup,
+  onToggleCastingDebug,
   onClose,
 }: {
   profiles: Profile[];
@@ -360,6 +362,7 @@ function AdminPanel({
   currentUserId: string;
   onSetAdmin: (userId: string) => void;
   onToggleDisableSignup: () => void;
+  onToggleCastingDebug: () => void;
   onClose: () => void;
 }) {
   return (
@@ -428,27 +431,52 @@ function AdminPanel({
         {/* Settings */}
         <div className="bg-oracle-card border border-oracle-border rounded-2xl p-6">
           <h2 className="text-oracle-gold font-serif text-lg mb-5">Settings</h2>
-          <div className="flex items-center justify-between gap-6">
-            <div>
-              <p className="text-oracle-text text-sm font-medium">Disable New Account Creation</p>
-              <p className="text-oracle-muted text-xs mt-1 leading-relaxed">
-                Prevent new users from signing up. Existing accounts are unaffected.
-              </p>
-            </div>
-            <button
-              role="switch"
-              aria-checked={appConfig.disable_signup}
-              onClick={onToggleDisableSignup}
-              className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors duration-200 ${
-                appConfig.disable_signup ? "bg-oracle-gold" : "bg-oracle-border"
-              }`}
-            >
-              <span
-                className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${
-                  appConfig.disable_signup ? "translate-x-5" : "translate-x-0"
+          <div className="space-y-5">
+            <div className="flex items-center justify-between gap-6">
+              <div>
+                <p className="text-oracle-text text-sm font-medium">Disable New Account Creation</p>
+                <p className="text-oracle-muted text-xs mt-1 leading-relaxed">
+                  Prevent new users from signing up. Existing accounts are unaffected.
+                </p>
+              </div>
+              <button
+                role="switch"
+                aria-checked={appConfig.disable_signup}
+                onClick={onToggleDisableSignup}
+                className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors duration-200 ${
+                  appConfig.disable_signup ? "bg-oracle-gold" : "bg-oracle-border"
                 }`}
-              />
-            </button>
+              >
+                <span
+                  className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${
+                    appConfig.disable_signup ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between gap-6 pt-4 border-t border-oracle-border/40">
+              <div>
+                <p className="text-oracle-text text-sm font-medium">Show Casting Debug Panel</p>
+                <p className="text-oracle-muted text-xs mt-1 leading-relaxed">
+                  Display real-time casting data and the Proceed button during oracle readings.
+                </p>
+              </div>
+              <button
+                role="switch"
+                aria-checked={appConfig.show_casting_debug}
+                onClick={onToggleCastingDebug}
+                className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors duration-200 ${
+                  appConfig.show_casting_debug ? "bg-oracle-gold" : "bg-oracle-border"
+                }`}
+              >
+                <span
+                  className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${
+                    appConfig.show_casting_debug ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
           </div>
         </div>
       </main>
@@ -488,6 +516,7 @@ export default function OraclePage() {
   const entropyIndexRef = useRef(0);
   const generatingRef = useRef(false);
   const lastMousePosRef = useRef({ x: 0, y: 0 });
+  const castingDebugActiveRef = useRef(false);
 
   const questionRef = useRef(question);
   const resultLinesRef = useRef(resultLines);
@@ -508,6 +537,10 @@ export default function OraclePage() {
     user !== null &&
     appConfig !== null &&
     (appConfig.admin_user_id === null || appConfig.admin_user_id === user.id);
+
+  useEffect(() => {
+    castingDebugActiveRef.current = isAdmin && (appConfig?.show_casting_debug ?? false);
+  }, [isAdmin, appConfig]);
 
   // ── Data loaders ─────────────────────────────────────────────────────────
 
@@ -648,11 +681,19 @@ export default function OraclePage() {
       if (lineCount >= 6) {
         const primaryNum = getHexagramNumber(generatedLines);
         const transformedNum = getTransformedHexagramNumber(generatedLines);
-        setPendingResult({
-          primary: getHexagram(primaryNum),
-          transformed: transformedNum ? getHexagram(transformedNum) : null,
-          lines: [...generatedLines],
-        });
+        const primary = getHexagram(primaryNum);
+        const transformed = transformedNum ? getHexagram(transformedNum) : null;
+        const castLines = [...generatedLines];
+        if (castingDebugActiveRef.current) {
+          // Wait for admin to click Proceed in the Casting Debug panel
+          setPendingResult({ primary, transformed, lines: castLines });
+        } else {
+          // Auto-advance (normal flow when Casting Debug is off)
+          setResultLines(castLines);
+          setPrimaryHex(primary);
+          setTransformedHex(transformed);
+          setPhase("result");
+        }
         generatingRef.current = false;
         return;
       }
@@ -778,6 +819,15 @@ export default function OraclePage() {
     await supabase
       .from("app_config")
       .update({ disable_signup: !appConfig.disable_signup })
+      .eq("id", 1);
+    await loadAppConfig();
+  }
+
+  async function handleToggleCastingDebug() {
+    if (!appConfig) return;
+    await supabase
+      .from("app_config")
+      .update({ show_casting_debug: !appConfig.show_casting_debug })
       .eq("id", 1);
     await loadAppConfig();
   }
@@ -991,7 +1041,7 @@ export default function OraclePage() {
                 )}
               </div>
 
-              <div className="flex gap-5 items-start">
+              <div className={`flex gap-5 items-start ${isAdmin && appConfig?.show_casting_debug ? "" : "justify-center"}`}>
                 {/* Hexagram card */}
                 <div className="bg-white rounded-2xl p-8 shadow-2xl w-80">
                   <div className="space-y-1">
@@ -1020,8 +1070,8 @@ export default function OraclePage() {
                   </p>
                 </div>
 
-                {/* Debug panel */}
-                <div className="bg-oracle-card border border-oracle-border rounded-2xl p-4 w-52 font-mono text-xs flex flex-col gap-3">
+                {/* Casting Debug panel — admin only, when enabled in Admin settings */}
+                {isAdmin && appConfig?.show_casting_debug && <div className="bg-oracle-card border border-oracle-border rounded-2xl p-4 w-52 font-mono text-xs flex flex-col gap-3">
                   <p className="text-oracle-gold uppercase tracking-widest text-xs font-semibold">
                     Casting Debug
                   </p>
@@ -1059,7 +1109,7 @@ export default function OraclePage() {
                   >
                     Proceed
                   </button>
-                </div>
+                </div>}
               </div>
             </div>
           )}
@@ -1155,6 +1205,7 @@ export default function OraclePage() {
           currentUserId={user.id}
           onSetAdmin={handleSetAdmin}
           onToggleDisableSignup={handleToggleDisableSignup}
+          onToggleCastingDebug={handleToggleCastingDebug}
           onClose={() => setShowAdminPanel(false)}
         />
       )}
