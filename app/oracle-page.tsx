@@ -15,6 +15,12 @@ import type { User } from "@supabase/supabase-js";
 type Phase = "intro" | "oracle" | "result";
 
 const RTL_TRANSLATIONS = new Set(["fa"]);
+
+// Authoritative display names for RTL translations, independent of DB byte order.
+// These are in correct Unicode logical order (first codepoint = first letter read RTL).
+const RTL_DISPLAY_NAMES: Record<string, string> = {
+  fa: "فارسی", // فارسی
+};
 type LineValue = 6 | 7 | 8 | 9;
 
 interface Reading {
@@ -205,7 +211,7 @@ function TranslationSpinner({
         dir={RTL_TRANSLATIONS.has(currentId) ? "rtl" : undefined}
         className={`text-oracle-muted text-xs min-w-20 text-center ${RTL_TRANSLATIONS.has(currentId) ? "" : "uppercase tracking-widest"}`}
       >
-        {current?.name ?? "English"}
+        {RTL_DISPLAY_NAMES[currentId] ?? current?.name ?? "English"}
       </span>
       <button
         onClick={() => go(1)}
