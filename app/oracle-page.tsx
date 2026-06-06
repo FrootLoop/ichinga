@@ -119,6 +119,7 @@ function HexagramCard({
   return (
     <div
       dir={isRTL ? "rtl" : undefined}
+      lang={isRTL ? "fa" : undefined}
       className="bg-white rounded-2xl p-6 shadow-2xl flex-1 min-w-0"
     >
       <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-1">

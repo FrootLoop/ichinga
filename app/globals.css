@@ -65,6 +65,11 @@ body {
   transform-origin: left center;
 }
 
+/* Persian / Arabic text */
+[lang="fa"], [lang="fa"] * {
+  font-family: 'Vazirmatn', ui-sans-serif, system-ui, sans-serif;
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;
