@@ -1007,3 +1007,22 @@ export const HEXAGRAMS: Hexagram[] = [
 export function getHexagram(number: number): Hexagram {
   return HEXAGRAMS[number - 1];
 }
+
+// Returns the 6 line values (1=yang, 0=yin) for a hexagram, line 1 (bottom) first.
+export function getHexagramLines(hexagramNumber: number): [0|1, 0|1, 0|1, 0|1, 0|1, 0|1] {
+  for (let lower = 0; lower < 8; lower++) {
+    for (let upper = 0; upper < 8; upper++) {
+      if (HEXAGRAM_TABLE[lower][upper] === hexagramNumber) {
+        return [
+          ((lower >> 0) & 1) as 0|1,
+          ((lower >> 1) & 1) as 0|1,
+          ((lower >> 2) & 1) as 0|1,
+          ((upper >> 0) & 1) as 0|1,
+          ((upper >> 1) & 1) as 0|1,
+          ((upper >> 2) & 1) as 0|1,
+        ];
+      }
+    }
+  }
+  return [0, 0, 0, 0, 0, 0];
+}

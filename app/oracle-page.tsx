@@ -6,6 +6,7 @@ import {
   getHexagramNumber,
   getTransformedHexagramNumber,
   getHexagram,
+  getHexagramLines,
   type Hexagram,
 } from "@/lib/iching-data";
 import { getHexagramFr } from "@/lib/iching-data-fr";
@@ -623,6 +624,122 @@ function HistoryPanel({
   );
 }
 
+// ─── Translation Export ───────────────────────────────────────────────────────
+
+const EXPORT_LINES_LABEL: Record<string, string> = { fa: "خطوط", fr: "Lignes" };
+
+function exportTranslationPDF(translationId: string, allTranslations: Translation[]) {
+  const translation = allTranslations.find((t) => t.id === translationId);
+  const isRTL = RTL_TRANSLATIONS.has(translationId);
+  const displayName = RTL_DISPLAY_NAMES[translationId] ?? translation?.name ?? translationId;
+  const linesLabel = EXPORT_LINES_LABEL[translationId] ?? "Lines";
+
+  const hexagrams = Array.from({ length: 64 }, (_, i) =>
+    getHexagramForTranslation(i + 1, translationId)
+  );
+
+  const cardDir = isRTL ? ' dir="rtl"' : "";
+  const cardStyle = isRTL ? "direction:rtl;text-align:right;" : "";
+  const headerFlex = isRTL ? "flex-direction:row-reverse;" : "";
+  const lineRowFlex = isRTL ? "flex-direction:row-reverse;" : "";
+
+  const cardsHtml = hexagrams.map((hex) => {
+    const lineVals = getHexagramLines(hex.number);
+    // Render top-to-bottom: line 6 first, line 1 last (matches the reading card)
+    const visualHtml = [5, 4, 3, 2, 1, 0].map((i) =>
+      lineVals[i] === 1
+        ? `<div style="height:13px;background:#1a1a1a;border-radius:3px;margin:6px 0;"></div>`
+        : `<div style="display:flex;gap:18px;margin:6px 0;"><div style="flex:1;height:13px;background:#1a1a1a;border-radius:3px;"></div><div style="flex:1;height:13px;background:#1a1a1a;border-radius:3px;"></div></div>`
+    ).join("");
+
+    const linesHtml = hex.lines.map((text, i) => `
+      <div style="display:flex;gap:10px;margin-bottom:10px;${lineRowFlex}">
+        <span style="color:#f97316;font-weight:700;font-size:12px;flex-shrink:0;padding-top:2px;">${i + 1}</span>
+        <p style="font-size:12px;color:#4b5563;line-height:1.65;margin:0;">${text}</p>
+      </div>`).join("");
+
+    return `
+      <div${cardDir} style="background:white;border-radius:10px;padding:28px;margin-bottom:20px;page-break-inside:avoid;${cardStyle}">
+        <p style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:#9ca3af;margin:0 0 6px;">Hexagram</p>
+        <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:4px;${headerFlex}">
+          <span style="font-size:38px;font-weight:700;color:#111827;line-height:1;">${hex.number}</span>
+          <div>
+            <h2 style="font-size:21px;font-weight:700;color:#111827;margin:0;font-family:serif;line-height:1.2;">${hex.name}</h2>
+            <p style="font-size:12px;color:#6b7280;margin:3px 0 0;">${hex.chineseName}</p>
+          </div>
+        </div>
+        <div style="width:190px;margin:18px auto;">${visualHtml}</div>
+        <p style="font-size:13px;color:#374151;line-height:1.75;font-style:italic;margin:0 0 20px;">${hex.judgment}</p>
+        <div style="border-top:1px solid #e5e7eb;padding-top:14px;">
+          <p style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:#f97316;margin:0 0 10px;">${linesLabel}</p>
+          ${linesHtml}
+        </div>
+      </div>`;
+  }).join("");
+
+  const fontImport = isRTL
+    ? `<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet">`
+    : "";
+  const bodyFont = isRTL
+    ? `font-family:'Vazirmatn',ui-sans-serif,system-ui,sans-serif;`
+    : `font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;`;
+
+  const html = `<!DOCTYPE html>
+<html lang="${isRTL ? translationId : "en"}">
+<head>
+<meta charset="UTF-8">
+<title>I Ching — ${displayName}</title>
+${fontImport}
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{${bodyFont}background:#f3f4f6;padding:20px;}
+@media print{body{background:white;padding:0;}}
+</style>
+</head>
+<body>
+<div style="max-width:700px;margin:0 auto;">
+  <div style="text-align:center;padding:48px 0 36px;">
+    <p style="font-size:13px;letter-spacing:0.15em;text-transform:uppercase;color:#9ca3af;margin-bottom:10px;">I Ching Oracle</p>
+    <h1 style="font-size:26px;font-weight:700;color:#1f2937;">${displayName}</h1>
+    <p style="font-size:13px;color:#6b7280;margin-top:8px;">All 64 Hexagrams</p>
+  </div>
+  ${cardsHtml}
+</div>
+<script>window.addEventListener('load',()=>setTimeout(()=>window.print(),400));</script>
+</body>
+</html>`;
+
+  const win = window.open("", "_blank", "width=820,height=700");
+  if (win) {
+    win.document.write(html);
+    win.document.close();
+  }
+}
+
+function exportTranslationCSV(translationId: string, allTranslations: Translation[]) {
+  const translation = allTranslations.find((t) => t.id === translationId);
+  const displayName = RTL_DISPLAY_NAMES[translationId] ?? translation?.name ?? translationId;
+  const hexagrams = Array.from({ length: 64 }, (_, i) =>
+    getHexagramForTranslation(i + 1, translationId)
+  );
+  const esc = (s: string) => `"${String(s).replace(/"/g, '""')}"`;
+  const header = ["number", "name", "chinese_name", "judgment",
+    "line_1", "line_2", "line_3", "line_4", "line_5", "line_6"].join(",");
+  const rows = hexagrams.map((h) =>
+    [h.number, esc(h.name), esc(h.chineseName), esc(h.judgment), ...h.lines.map(esc)].join(",")
+  );
+  const csv = "﻿" + [header, ...rows].join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `iching-${translationId}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 // ─── Admin Panel ─────────────────────────────────────────────────────────────
 
 function AdminPanel({
@@ -646,6 +763,8 @@ function AdminPanel({
   onToggleTranslationAdminOnly: (id: string, current: boolean) => void;
   onClose: () => void;
 }) {
+  const [exportId, setExportId] = useState(translations[0]?.id ?? "en");
+
   return (
     <div
       className="fixed inset-0 z-40 flex flex-col overflow-y-auto"
@@ -812,6 +931,46 @@ function AdminPanel({
               ))}
             </div>
           )}
+        </div>
+
+        {/* Export */}
+        <div className="bg-oracle-card border border-oracle-border rounded-2xl p-6">
+          <h2 className="text-oracle-gold font-serif text-lg mb-1">Export Translation</h2>
+          <p className="text-oracle-muted text-sm mb-5 leading-relaxed">
+            Export all 64 hexagrams for a translation as a printable PDF or a CSV spreadsheet.
+          </p>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs text-oracle-muted mb-2 uppercase tracking-wider">
+                Translation
+              </label>
+              <select
+                value={exportId}
+                onChange={(e) => setExportId(e.target.value)}
+                className="w-full bg-oracle-surface border border-oracle-border rounded-lg px-4 py-2.5 text-oracle-text focus:outline-none focus:border-oracle-gold text-sm"
+              >
+                {translations.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {RTL_DISPLAY_NAMES[t.id] ?? t.name} ({t.id})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => exportTranslationPDF(exportId, translations)}
+                className="flex-1 bg-oracle-gold hover:bg-oracle-gold-light text-oracle-bg font-bold py-2.5 rounded-lg transition-colors text-sm"
+              >
+                Export as PDF
+              </button>
+              <button
+                onClick={() => exportTranslationCSV(exportId, translations)}
+                className="flex-1 border border-oracle-border hover:border-oracle-gold/40 text-oracle-muted hover:text-oracle-text py-2.5 rounded-lg transition-all text-sm"
+              >
+                Export as CSV
+              </button>
+            </div>
+          </div>
         </div>
       </main>
     </div>
