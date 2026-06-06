@@ -13,6 +13,8 @@ import { getHexagramFa } from "@/lib/iching-data-fa";
 import type { User } from "@supabase/supabase-js";
 
 type Phase = "intro" | "oracle" | "result";
+
+const RTL_TRANSLATIONS = new Set(["fa"]);
 type LineValue = 6 | 7 | 8 | 9;
 
 interface Reading {
@@ -198,7 +200,11 @@ function TranslationSpinner({
       >
         ‹
       </button>
-      <span lang={currentId} className="text-oracle-muted text-xs uppercase tracking-widest min-w-20 text-center">
+      <span
+        lang={currentId}
+        dir={RTL_TRANSLATIONS.has(currentId) ? "rtl" : undefined}
+        className={`text-oracle-muted text-xs min-w-20 text-center ${RTL_TRANSLATIONS.has(currentId) ? "" : "uppercase tracking-widest"}`}
+      >
         {current?.name ?? "English"}
       </span>
       <button
@@ -1253,7 +1259,6 @@ export default function OraclePage() {
     .map((v, i) => (v === 6 || v === 9 ? i : -1))
     .filter((i) => i !== -1);
 
-  const RTL_TRANSLATIONS = new Set(["fa"]);
   const cardIsRTL = RTL_TRANSLATIONS.has(currentTranslationId);
 
   const questionDisplay = question.trim() ? `"${question}"` : "The Question is Private";
