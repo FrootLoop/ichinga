@@ -818,6 +818,96 @@ function AdminPanel({
   );
 }
 
+// ─── Settings Panel ──────────────────────────────────────────────────────────
+
+function SettingsPanel({
+  translations,
+  enabledTranslations,
+  isAdmin,
+  onToggle,
+  onClose,
+}: {
+  translations: Translation[];
+  enabledTranslations: string[];
+  isAdmin: boolean;
+  onToggle: (id: string, enabled: boolean) => void;
+  onClose: () => void;
+}) {
+  const available = translations.filter((t) => !t.admin_only || isAdmin);
+
+  return (
+    <div
+      className="fixed inset-0 z-40 flex flex-col overflow-y-auto"
+      style={{ background: "linear-gradient(135deg, #0f0e0c 0%, #1a1510 50%, #0f0e0c 100%)" }}
+    >
+      <header className="flex items-center justify-between px-6 py-4 border-b border-oracle-border/40">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">☯</span>
+          <div>
+            <h1 className="text-xl font-serif text-oracle-gold tracking-wide">Settings</h1>
+            <p className="text-xs text-oracle-muted">I Ching Oracle</p>
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          className="text-sm text-oracle-muted hover:text-oracle-text border border-oracle-border hover:border-oracle-gold/40 rounded-lg px-3 py-1.5 transition-all"
+        >
+          ← Back
+        </button>
+      </header>
+
+      <main className="flex-1 px-4 py-10 max-w-2xl mx-auto w-full space-y-6">
+        <div className="bg-oracle-card border border-oracle-border rounded-2xl p-6">
+          <h2 className="text-oracle-gold font-serif text-lg mb-1">Translation Preferences</h2>
+          <p className="text-oracle-muted text-sm mb-5 leading-relaxed">
+            Choose which translations appear in the spinner on the result page. English is always available as the default.
+          </p>
+          <div className="space-y-2">
+            {available.map((t) => {
+              const isDefault = t.id === "en";
+              const isEnabled = enabledTranslations.includes(t.id);
+              const displayName = RTL_DISPLAY_NAMES[t.id] ?? t.name;
+              return (
+                <label
+                  key={t.id}
+                  className={`flex items-center gap-3 bg-oracle-surface border border-oracle-border rounded-xl px-4 py-3 transition-all ${
+                    isDefault
+                      ? "opacity-60 cursor-default"
+                      : "hover:bg-oracle-bg hover:border-oracle-gold/40 cursor-pointer"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isEnabled}
+                    disabled={isDefault}
+                    onChange={(e) => onToggle(t.id, e.target.checked)}
+                    className="w-4 h-4 flex-shrink-0 accent-[#c9a84c]"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p
+                      lang={RTL_TRANSLATIONS.has(t.id) ? t.id : undefined}
+                      dir={RTL_TRANSLATIONS.has(t.id) ? "rtl" : undefined}
+                      className="text-oracle-text text-sm font-medium"
+                    >
+                      {displayName}
+                    </p>
+                    <p className="text-oracle-muted text-xs uppercase tracking-wider">{t.id}</p>
+                  </div>
+                  {isDefault && (
+                    <span className="text-xs text-oracle-gold font-semibold uppercase tracking-wider flex-shrink-0">
+                      Default
+                    </span>
+                  )}
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
 // ─── Main Oracle Page ─────────────────────────────────────────────────────────
 
 export default function OraclePage() {
@@ -834,6 +924,8 @@ export default function OraclePage() {
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [showPasswordReset, setShowPasswordReset] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [enabledTranslations, setEnabledTranslations] = useState<string[]>(["en"]);
 
   // Hexagram numbers stored in state; full Hexagram objects derived in render
   const [primaryHexNum, setPrimaryHexNum] = useState<number | null>(null);
@@ -887,8 +979,10 @@ export default function OraclePage() {
     ? getHexagramForTranslation(transformedHexNum, currentTranslationId)
     : null;
 
-  // Filter translations by admin status; all-users translations are always shown
-  const visibleTranslations = allTranslations.filter((t) => !t.admin_only || isAdmin);
+  // Filter by admin status and by the user's per-account enabled list
+  const visibleTranslations = allTranslations
+    .filter((t) => !t.admin_only || isAdmin)
+    .filter((t) => enabledTranslations.includes(t.id));
 
   // If current translation is no longer visible after an admin status change, fall back to English
   useEffect(() => {
@@ -942,11 +1036,15 @@ export default function OraclePage() {
   async function loadTranslationPreference(userId: string) {
     const { data } = await supabase
       .from("profiles")
-      .select("translation_id")
+      .select("translation_id, enabled_translations")
       .eq("id", userId)
       .single();
     if (data?.translation_id) {
       setCurrentTranslationId(data.translation_id);
+    }
+    if (data?.enabled_translations && (data.enabled_translations as string[]).length > 0) {
+      const stored = data.enabled_translations as string[];
+      setEnabledTranslations(stored.includes("en") ? stored : ["en", ...stored]);
     }
   }
 
@@ -998,6 +1096,7 @@ export default function OraclePage() {
       } else {
         setHistory([]);
         setCurrentTranslationId("en");
+        setEnabledTranslations(["en"]);
       }
     });
 
@@ -1020,6 +1119,21 @@ export default function OraclePage() {
     setCurrentTranslationId(id);
     if (user) {
       await supabase.from("profiles").update({ translation_id: id }).eq("id", user.id);
+    }
+  }
+
+  async function handleToggleEnabledTranslation(id: string, enabled: boolean) {
+    if (id === "en") return;
+    const updated = enabled
+      ? [...new Set([...enabledTranslations, id])]
+      : enabledTranslations.filter((x) => x !== id);
+    const final = updated.includes("en") ? updated : ["en", ...updated];
+    setEnabledTranslations(final);
+    if (!final.includes(currentTranslationId)) {
+      handleTranslationChange("en");
+    }
+    if (user) {
+      await supabase.from("profiles").update({ enabled_translations: final }).eq("id", user.id);
     }
   }
 
@@ -1313,6 +1427,12 @@ export default function OraclePage() {
                   Admin
                 </button>
               )}
+              <button
+                onClick={() => setShowSettings(true)}
+                className="text-sm text-oracle-muted hover:text-oracle-gold border border-oracle-border hover:border-oracle-gold/40 rounded-lg px-3 py-1.5 transition-all"
+              >
+                Settings
+              </button>
               <span className="text-oracle-muted text-sm hidden sm:block truncate max-w-32">
                 {user.email}
               </span>
@@ -1659,6 +1779,16 @@ export default function OraclePage() {
           onToggleCastingDebug={handleToggleCastingDebug}
           onToggleTranslationAdminOnly={handleToggleTranslationAdminOnly}
           onClose={() => setShowAdminPanel(false)}
+        />
+      )}
+
+      {showSettings && user && (
+        <SettingsPanel
+          translations={allTranslations}
+          enabledTranslations={enabledTranslations}
+          isAdmin={isAdmin}
+          onToggle={handleToggleEnabledTranslation}
+          onClose={() => setShowSettings(false)}
         />
       )}
     </div>
