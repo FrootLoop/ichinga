@@ -198,7 +198,7 @@ function TranslationSpinner({
       >
         ‹
       </button>
-      <span className="text-oracle-muted text-xs uppercase tracking-widest min-w-20 text-center">
+      <span lang={currentId} className="text-oracle-muted text-xs uppercase tracking-widest min-w-20 text-center">
         {current?.name ?? "English"}
       </span>
       <button
