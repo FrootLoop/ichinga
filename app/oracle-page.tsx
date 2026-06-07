@@ -730,17 +730,18 @@ function exportTranslationCSV(translationId: string, allTranslations: Translatio
     "line_1", "line_2", "line_3", "line_4", "line_5", "line_6",
   ].join(",");
   // Each hexagram spans multiple visual lines in the raw file.
-  // \r\n before the trailing comma of yang_6, chinese_name, judgment, and each line
-  // so that those commas open the next visual line, grouping related fields together.
+  // The trailing comma appears at the end of each visual line (before the CRLF),
+  // grouping: yang values / number+name+chinese / judgment / one line per row.
+  // The last field (line_6) has no trailing comma.
   const rows = hexagrams.map((h) => {
     const lv = getHexagramLines(h.number);
     const yangGroup = [esc(displayName), lv[0], lv[1], lv[2], lv[3], lv[4], lv[5]].join(",");
     const nameGroup = [h.number, esc(h.name), esc(h.chineseName)].join(",");
     return (
-      yangGroup + "\r\n," +
-      nameGroup + "\r\n," +
-      esc(h.judgment) + "\r\n," +
-      h.lines.map(esc).join("\r\n,")
+      yangGroup + ",\r\n" +
+      nameGroup + ",\r\n" +
+      esc(h.judgment) + ",\r\n" +
+      h.lines.map(esc).join(",\r\n")
     );
   });
   const csv = "﻿" + [header, ...rows].join("\r\n");
