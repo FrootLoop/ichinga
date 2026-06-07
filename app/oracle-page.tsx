@@ -723,11 +723,21 @@ function exportTranslationCSV(translationId: string, allTranslations: Translatio
     getHexagramForTranslation(i + 1, translationId)
   );
   const esc = (s: string) => `"${String(s).replace(/"/g, '""')}"`;
-  const header = ["number", "name", "chinese_name", "judgment",
-    "line_1", "line_2", "line_3", "line_4", "line_5", "line_6"].join(",");
-  const rows = hexagrams.map((h) =>
-    [h.number, esc(h.name), esc(h.chineseName), esc(h.judgment), ...h.lines.map(esc)].join(",")
-  );
+  const header = [
+    "translation_name",
+    "yang_1", "yang_2", "yang_3", "yang_4", "yang_5", "yang_6",
+    "number", "name", "chinese_name", "judgment",
+    "line_1", "line_2", "line_3", "line_4", "line_5", "line_6",
+  ].join(",");
+  const rows = hexagrams.map((h) => {
+    const lineVals = getHexagramLines(h.number);
+    return [
+      esc(displayName),
+      ...lineVals,
+      h.number, esc(h.name), esc(h.chineseName), esc(h.judgment),
+      ...h.lines.map(esc),
+    ].join(",");
+  });
   const csv = "﻿" + [header, ...rows].join("\r\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
