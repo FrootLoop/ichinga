@@ -733,15 +733,17 @@ function exportTranslationCSV(translationId: string, allTranslations: Translatio
   // The trailing comma appears at the end of each visual line (before the CRLF),
   // grouping: yang values / number+name+chinese / judgment / one line per row.
   // The last field (line_6) has no trailing comma.
-  const rows = hexagrams.map((h) => {
+  const rows = hexagrams.map((h, idx) => {
     const lv = getHexagramLines(h.number);
     const yangGroup = [esc(displayName), lv[0], lv[1], lv[2], lv[3], lv[4], lv[5]].join(",");
     const nameGroup = [h.number, esc(h.name), esc(h.chineseName)].join(",");
+    const isLast = idx === hexagrams.length - 1;
     return (
       yangGroup + ",\r\n" +
       nameGroup + ",\r\n" +
       esc(h.judgment) + ",\r\n" +
-      h.lines.map(esc).join(",\r\n")
+      h.lines.map(esc).join(",\r\n") +
+      (isLast ? "" : ",")
     );
   });
   const csv = "﻿" + [header, ...rows].join("\r\n");
