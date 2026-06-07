@@ -722,26 +722,26 @@ function exportTranslationCSV(translationId: string, allTranslations: Translatio
   const hexagrams = Array.from({ length: 64 }, (_, i) =>
     getHexagramForTranslation(i + 1, translationId)
   );
-  // esc: standard quoted field; escNL: quoted field with trailing CRLF for visual grouping.
-  // A CRLF inside a quoted field is valid per RFC 4180 — parsers treat it as part of
-  // the field value while text editors render it as a visible line break.
   const esc = (s: string) => `"${String(s).replace(/"/g, '""')}"`;
-  const escNL = (s: string) => `"${String(s).replace(/"/g, '""')}\r\n"`;
   const header = [
     "translation_name",
     "yang_1", "yang_2", "yang_3", "yang_4", "yang_5", "yang_6",
     "number", "name", "chinese_name", "judgment",
     "line_1", "line_2", "line_3", "line_4", "line_5", "line_6",
   ].join(",");
+  // Each hexagram spans multiple visual lines in the raw file.
+  // \r\n before the trailing comma of yang_6, chinese_name, judgment, and each line
+  // so that those commas open the next visual line, grouping related fields together.
   const rows = hexagrams.map((h) => {
     const lv = getHexagramLines(h.number);
-    return [
-      esc(displayName),
-      lv[0], lv[1], lv[2], lv[3], lv[4], `"${lv[5]}\r\n"`,  // yang_6 + break
-      h.number, esc(h.name), escNL(h.chineseName),             // chinese_name + break
-      escNL(h.judgment),                                        // judgment + break
-      ...h.lines.map(escNL),                                    // each line + break
-    ].join(",");
+    const yangGroup = [esc(displayName), lv[0], lv[1], lv[2], lv[3], lv[4], lv[5]].join(",");
+    const nameGroup = [h.number, esc(h.name), esc(h.chineseName)].join(",");
+    return (
+      yangGroup + "\r\n," +
+      nameGroup + "\r\n," +
+      esc(h.judgment) + "\r\n," +
+      h.lines.map(esc).join("\r\n,")
+    );
   });
   const csv = "﻿" + [header, ...rows].join("\r\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
