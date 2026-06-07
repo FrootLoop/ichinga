@@ -652,11 +652,15 @@ function exportTranslationPDF(translationId: string, allTranslations: Translatio
         : `<div style="display:flex;gap:18px;margin:6px 0;"><div style="flex:1;height:13px;background:#1a1a1a;border-radius:3px;"></div><div style="flex:1;height:13px;background:#1a1a1a;border-radius:3px;"></div></div>`
     ).join("");
 
-    const linesHtml = hex.lines.map((text, i) => `
+    // Render top-to-bottom: line 6 first, line 1 last (bottom-up convention)
+    const linesHtml = [...hex.lines].reverse().map((text, i) => {
+      const lineNum = hex.lines.length - i;
+      return `
       <div style="display:flex;gap:10px;margin-bottom:10px;${lineRowFlex}">
-        <span style="color:#f97316;font-weight:700;font-size:12px;flex-shrink:0;padding-top:2px;">${i + 1}</span>
+        <span style="color:#f97316;font-weight:700;font-size:12px;flex-shrink:0;padding-top:2px;">${lineNum}</span>
         <p style="font-size:12px;color:#4b5563;line-height:1.65;margin:0;">${text}</p>
-      </div>`).join("");
+      </div>`;
+    }).join("");
 
     return `
       <div${cardDir} style="background:white;border-radius:10px;padding:28px;margin-bottom:20px;page-break-inside:avoid;${cardStyle}">
